@@ -1,0 +1,6 @@
+// --- REFACTORED SPECIFICATIONS ---
+// Common elements are imported from ../shared/spec.c4
+
+specification {
+  // Tags spécifiques au projet refactored
+}

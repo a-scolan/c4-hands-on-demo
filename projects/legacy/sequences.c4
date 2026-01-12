@@ -1,0 +1,63 @@
+// --- SEQUENCE DIAGRAMS (LEGACY) ---
+// Dynamic views showing synchronous interaction flows in the legacy monolith
+
+views {
+
+  // Upload/Processing Flow (Synchronous/Blocking)
+  dynamic view seq_upload_flow {
+    title 'Seq / Upload'
+    
+    customer -> vault.monolith.frontend 'Upload file'
+    vault.monolith.frontend -> vault.monolith.uploadHandler 'POST /upload'
+    vault.monolith.uploadHandler -> vault.monolith.documentService 'Process upload'
+    vault.monolith.documentService -> vault.monolith.fileValidator 'Validate file'
+    vault.monolith.fileValidator -> vault.monolith.documentService 'Valid'
+    vault.monolith.documentService -> vault.monolith.scannerClient 'Scan file (blocking)'
+    vault.monolith.scannerClient -> scanner 'Check file'
+    scanner -> vault.monolith.scannerClient 'Clean'
+    vault.monolith.scannerClient -> vault.monolith.documentService 'Scan passed'
+    vault.monolith.documentService -> vault.monolith.encryptor 'Encrypt file'
+    vault.monolith.encryptor -> vault.db 'Store encryption key'
+    vault.db -> vault.monolith.encryptor 'Key saved'
+    vault.monolith.encryptor -> vault.monolith.documentService 'Encrypted'
+    vault.monolith.documentService -> vault.monolith.storageHandler 'Store file'
+    vault.monolith.storageHandler -> vault.disk 'Write encrypted file'
+    vault.disk -> vault.monolith.storageHandler 'Stored'
+    vault.monolith.storageHandler -> vault.monolith.documentService 'Confirm'
+    vault.monolith.documentService -> vault.monolith.dao 'Update metadata'
+    vault.monolith.dao -> vault.db 'Set READY'
+    vault.db -> vault.monolith.dao 'Done'
+    vault.monolith.documentService -> vault.monolith.uploadHandler 'Upload complete'
+    vault.monolith.uploadHandler -> vault.monolith.frontend 'Success'
+    vault.monolith.frontend -> customer 'File uploaded'
+  }
+
+  // Retrieval/Download Flow
+  dynamic view seq_retrieval_flow {
+    title 'Seq / Retrieval'
+    
+    customer -> vault.monolith.frontend 'View documents'
+    vault.monolith.frontend -> vault.monolith.documentService 'GET /documents'
+    vault.monolith.documentService -> vault.monolith.dao 'Query documents'
+    vault.monolith.dao -> vault.db 'Fetch metadata'
+    vault.db -> vault.monolith.dao 'Return list'
+    vault.monolith.dao -> vault.monolith.documentService 'Documents'
+    vault.monolith.documentService -> vault.monolith.frontend 'Document list'
+    vault.monolith.frontend -> customer 'Display documents'
+    
+    customer -> vault.monolith.frontend 'Download document'
+    vault.monolith.frontend -> vault.monolith.documentService 'GET /document/{id}'
+    vault.monolith.documentService -> vault.monolith.dao 'Get metadata'
+    vault.monolith.dao -> vault.db 'Query metadata'
+    vault.db -> vault.monolith.dao 'File location'
+    vault.monolith.dao -> vault.monolith.documentService 'Metadata'
+    vault.monolith.documentService -> vault.disk 'Read encrypted file'
+    vault.disk -> vault.monolith.documentService 'Encrypted data'
+    vault.monolith.documentService -> vault.monolith.decryptor 'Decrypt file'
+    vault.monolith.decryptor -> vault.db 'Get encryption key'
+    vault.db -> vault.monolith.decryptor 'Return key'
+    vault.monolith.decryptor -> vault.monolith.documentService 'Decrypted file'
+    vault.monolith.documentService -> vault.monolith.frontend 'Stream file'
+    vault.monolith.frontend -> customer 'Download complete'
+  }
+}

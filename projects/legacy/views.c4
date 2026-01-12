@@ -1,0 +1,38 @@
+// --- VIEWS (What we display) ---
+views {
+
+  // Context View: System and external actors
+  view c1_context {
+    title 'C1 / Secure Vault System'
+    include customer
+    include vault
+    include customer -> vault
+    
+    rank source {
+      customer
+    }
+  }
+
+  // Container View: Inside the vault system
+  view c2_container {
+    title 'C2 / Vault System Internals'
+    include customer
+    include vault.*
+    
+    rank source {
+      customer
+    }
+  }
+
+  // Component View: Monolith details
+  view c3_monolith_components {
+    title 'C3 / Monolith'
+    include customer
+    include vault.*
+    include vault.monolith.*
+    
+    rank source {
+      customer
+    }
+  }
+}

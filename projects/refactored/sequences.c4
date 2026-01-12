@@ -1,0 +1,65 @@
+// --- SEQUENCE DIAGRAMS ---
+// Dynamic views showing interaction flows in the refactored system
+
+views {
+
+  // Upload/Processing Flow
+  dynamic view seq_upload_flow {
+    title 'Seq / Upload'
+    
+    customer -> vault.frontend 'Upload file'
+    vault.frontend -> vault.api 'POST /upload'
+    vault.api -> vault.uploadService 'Route to upload service'
+    vault.uploadService -> vault.jobs 'Publish FileReceived'
+    vault.uploadService -> vault.api 'Return success'
+    vault.api -> customer 'Upload queued'
+    
+    vault.worker.consumer -> vault.jobs 'Consume message'
+    vault.worker.consumer -> vault.worker.orchestrator 'Delegate job'
+    vault.worker.orchestrator -> vault.worker.fileValidator 'Validate file'
+    vault.worker.fileValidator -> vault.worker.orchestrator 'Valid'
+    vault.worker.orchestrator -> vault.worker.scannerClient 'Scan for viruses'
+    vault.worker.scannerClient -> scanner 'Check file'
+    scanner -> vault.worker.scannerClient 'Clean'
+    vault.worker.scannerClient -> vault.worker.orchestrator 'Scan passed'
+    vault.worker.orchestrator -> vault.worker.encryptor 'Encrypt file'
+    vault.worker.encryptor -> vault.docDB 'Store encryption key'
+    vault.docDB -> vault.worker.encryptor 'Key saved'
+    vault.worker.encryptor -> vault.worker.orchestrator 'Encrypted'
+    vault.worker.orchestrator -> vault.worker.s3Client 'Store file'
+    vault.worker.s3Client -> s3 'Put encrypted object'
+    s3 -> vault.worker.s3Client 'Stored'
+    vault.worker.s3Client -> vault.worker.orchestrator 'Confirm'
+    vault.worker.orchestrator -> vault.worker.metadataWriter 'Update status'
+    vault.worker.metadataWriter -> vault.docDB 'Set READY'
+    vault.docDB -> vault.worker.metadataWriter 'Done'
+  }
+
+  // Retrieval/Download Flow
+  dynamic view seq_retrieval_flow {
+    title 'Seq / Retrieval'
+    
+    customer -> vault.frontend 'View documents'
+    vault.frontend -> vault.api 'GET /documents'
+    vault.api -> vault.documentService 'Route to document service'
+    vault.documentService -> vault.docDB 'Query documents'
+    vault.docDB -> vault.documentService 'Return list'
+    vault.documentService -> vault.api 'Document list'
+    vault.api -> vault.frontend 'Send list'
+    vault.frontend -> customer 'Display documents'
+    
+    customer -> vault.frontend 'Download document'
+    vault.frontend -> vault.api 'GET /document/{id}'
+    vault.api -> vault.downloadService 'Route to download service'
+    vault.downloadService -> vault.docDB 'Get metadata'
+    vault.docDB -> vault.downloadService 'File location'
+    vault.downloadService -> s3 'Get encrypted object'
+    s3 -> vault.downloadService 'Encrypted data'
+    vault.downloadService -> vault.docDB 'Get encryption key'
+    vault.docDB -> vault.downloadService 'Return key'
+    vault.downloadService -> vault.downloadService 'Decrypt file'
+    vault.downloadService -> vault.api 'Decrypted file'
+    vault.api -> vault.frontend 'Stream file'
+    vault.frontend -> customer 'Download complete'
+  }
+}
