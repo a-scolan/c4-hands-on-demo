@@ -28,18 +28,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v4
         
       - name: Build with LikeC4
-        uses: likec4/actions@v1
-        with:
-          action: build
-          output: dist
-          # Required if you don't set a custom domain for the repository
-          base: ${{ steps.pages.outputs.base_path }}
-          likec4-version: latest
+        run: |
+          npx likec4@latest build \
+            --output ./dist \
+            --output-single-file \
+            --base "${{ steps.pages.outputs.base_path || '/' }}"
           
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
