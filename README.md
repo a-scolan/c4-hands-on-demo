@@ -1,5 +1,7 @@
 # C4 Hands-On Demo - Multi-Project Architecture
 
+🔗 **[View Live Diagrams on GitHub Pages](https://a-scolan.github.io/c4-hands-on-demo/)**
+
 This workspace contains two **independent** LikeC4 projects demonstrating architecture evolution:
 
 ## 🎯 Project Structure
