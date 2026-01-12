@@ -2,5 +2,5 @@
 // Common elements are imported from ../shared/spec.c4
 
 specification {
-  // Tags spécifiques au projet refactored
+  // Project-specific tags can be added here if needed
 }

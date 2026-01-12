@@ -2,6 +2,5 @@
 // Common elements are imported from ../shared/spec.c4
 
 specification {
-  // This project has no additional specific elements
-  // All elements are defined in the shared file
+  // Project-specific tags can be added here if needed
 }

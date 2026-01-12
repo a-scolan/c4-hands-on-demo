@@ -1,14 +1,14 @@
-// --- SPÉCIFICATIONS C4 COMMUNES ---
-// Partagées entre les projets legacy et refactored
+// --- SHARED C4 SPECIFICATIONS ---
+// Common specifications shared between legacy and refactored projects
 
 specification {
-  // Couleurs personnalisées
+  // Custom colors
   color legacy #94a3b8
   color modern #3b82f6
   color external #ef4444
   color storage #f59e0b
 
-  // Éléments de base C4
+  // Base C4 elements
   element person {
     notation "Person"
     style {
@@ -38,7 +38,7 @@ specification {
     }
   }
   
-  // Éléments de stockage
+  // Storage elements
   element database {
     notation "Database"
     style {
@@ -63,7 +63,7 @@ specification {
     }
   }
 
-  // Types de relations
+  // Relationship types
   relationship uses {
     line solid
   }
@@ -88,7 +88,7 @@ specification {
     color red
   }
 
-  // Tags communs avec couleurs (format hex)
+  // Common tags with colors
   tag legacy {
     color #94a3b8
   }

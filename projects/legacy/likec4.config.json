@@ -1,7 +1,7 @@
 {
   "$schema": "https://likec4.dev/schemas/config.json",
   "name": "legacy-vault-system",
-  "title": "Legacy Vault System - Architecture Monolithique",
+  "title": "Legacy Vault System - Monolithic Architecture",
   "include": {
     "paths": ["../shared"]
   }
