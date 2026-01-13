@@ -7,7 +7,7 @@ views {
     title 'C1 / Secure Vault System'
     include customer
     include vault
-    include s3
+    include minio
     include scanner
     
     rank source {
@@ -15,7 +15,7 @@ views {
     }
     
     rank sink {
-      s3,
+      minio,
       scanner
     }
   }
@@ -25,7 +25,7 @@ views {
     title 'C2 / Vault System Internals'
     include customer
     include vault.*
-    include s3
+    include minio
     include scanner
     
     rank source {
@@ -33,7 +33,7 @@ views {
     }
     
     rank sink {
-      s3,
+      minio,
       scanner
     }
   }
@@ -44,7 +44,7 @@ views {
     include customer
     include vault.*
     include vault.frontend.*
-    include s3
+    include minio
     include scanner
     
     rank source {
@@ -52,26 +52,7 @@ views {
     }
     
     rank sink {
-      s3,
-      scanner
-    }
-  }
-
-  // Component View: API Gateway internals
-  view c3_api_gateway {
-    title 'C3 / API Gateway'
-    include customer
-    include vault.*
-    include vault.api.*
-    include s3
-    include scanner
-    
-    rank source {
-      customer
-    }
-    
-    rank sink {
-      s3,
+      minio,
       scanner
     }
   }
@@ -82,7 +63,7 @@ views {
     include customer
     include vault.*
     include vault.uploadService.*
-    include s3
+    include minio
     include scanner
     
     rank source {
@@ -90,18 +71,18 @@ views {
     }
     
     rank sink {
-      s3,
+      minio,
       scanner
     }
   }
 
-  // Component View: Document Service internals
-  view c3_document_service {
-    title 'C3 / Document Service'
+  // Component View: Retrieval Service internals (merged Document + Download)
+  view c3_retrieval_service {
+    title 'C3 / Retrieval Service'
     include customer
     include vault.*
-    include vault.documentService.*
-    include s3
+    include vault.retrievalService.*
+    include minio
     include scanner
     
     rank source {
@@ -109,26 +90,7 @@ views {
     }
     
     rank sink {
-      s3,
-      scanner
-    }
-  }
-
-  // Component View: Download Service internals
-  view c3_download_service {
-    title 'C3 / Download Service'
-    include customer
-    include vault.*
-    include vault.downloadService.*
-    include s3
-    include scanner
-    
-    rank source {
-      customer
-    }
-    
-    rank sink {
-      s3,
+      minio,
       scanner
     }
   }
@@ -139,7 +101,7 @@ views {
     include customer
     include vault.*
     include vault.worker.*
-    include s3
+    include minio
     include scanner
     
     rank source {
@@ -147,7 +109,7 @@ views {
     }
     
     rank sink {
-      s3,
+      minio,
       scanner
     }
   }

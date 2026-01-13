@@ -8,19 +8,11 @@ model {
     frontend = container 'Web UI' {
       technology 'React SPA'
       description 'Single Page Application'
-
-      app = component 'React App' {
-        technology 'React 18'
-      }
-
-      store = component 'State Management' {
-        technology 'Redux'
-      }
     }
 
     // 1. Entry Point
     api = container 'API Gateway' {
-      technology 'Node.js / Express'
+      technology 'Kong / API Gateway'
       description 'Routes requests and validates auth'
 
       router = component 'Router' {
@@ -35,32 +27,32 @@ model {
     // 2. Upload Service
     uploadService = container 'Upload Service' {
       technology 'Node.js / Express'
-      description 'Handles file uploads'
+      description 'Handles file uploads and validation'
 
       uploadHandler = component 'Upload Handler' {
         technology 'Multer / Express'
         description 'Receives and validates files'
       }
-    }
 
-    // 3. Document Service  
-    documentService = container 'Document Service' {
-      technology 'Node.js / Express'
-      description 'Document metadata management'
-
-      documentManager = component 'Document Manager' {
-        technology 'Business Logic'
-        description 'CRUD operations for documents'
+      fileValidator = component 'File Validator' {
+        technology 'File Analysis'
+        description 'Validates file type, size, and structure before queuing'
       }
     }
 
-    // 4. Download Service
-    downloadService = container 'Download Service' {
+    // 3. Retrieval Service (merged Document + Download)
+    retrievalService = container 'Retrieval Service' {
       technology 'GoLang'
-      description 'Handles file retrieval and decryption'
+      description 'Document metadata management and file retrieval with caching'
 
       retrievalHandler = component 'Retrieval Handler' {
         technology 'HTTP Handler'
+        description 'Handles metadata queries and file retrieval requests'
+      }
+
+      cacheManager = component 'Cache Manager' {
+        technology 'Redis Client'
+        description 'Caches frequently accessed metadata and decrypted files'
       }
 
       decryptor = component 'Decryption Service' {
@@ -78,7 +70,7 @@ model {
     // 6. Processing Worker
     worker = container 'Processing Worker' {
       technology 'GoLang'
-      description 'Async file processing'
+      description 'Async file processing (scanning, encryption, storage)'
 
       consumer = component 'Queue Consumer' {
         technology 'RabbitMQ Client'
@@ -88,11 +80,6 @@ model {
       orchestrator = component 'Job Orchestrator' {
         technology 'Workflow Engine'
         description 'Coordinates processing steps and error handling'
-      }
-
-      fileValidator = component 'File Validator' {
-        technology 'File Analysis'
-        description 'Validates file type, size, and structure'
       }
 
       scannerClient = component 'Virus Scanner Client' {
@@ -127,13 +114,12 @@ model {
     }
   }
 
-  // --- EXTERNAL DEPENDENCIES (Cloud / SaaS) ---
-  s3 = system 'AWS S3' {
-    #external
-    #cloud
-    description 'Encrypted Bucket'
+  // --- INTERNAL STORAGE ---
+  minio = system 'MinIO Object Storage' {
+    description 'Primary encrypted object storage (on-premises) with 3-node replication'
   }
 
+  // --- EXTERNAL DEPENDENCIES (Cloud / SaaS) ---
   scanner = system 'VirusTotal API' {
     #external
     #saas
@@ -150,22 +136,22 @@ model {
   // API Gateway Internal
   vault.api.router -[uses]-> vault.api.auth 'Authenticate requests'
 
-  // Upload Flow - API routes to Upload Service
+  // Upload Flow - Validation BEFORE queuing (fail-fast)
   vault.api.router -[calls]-> uploadService 'Route upload requests'
-  vault.uploadService.uploadHandler -[async]-> jobs 'Queue file for processing'
+  vault.uploadService.uploadHandler -[uses]-> vault.uploadService.fileValidator 'Validate file'
+  vault.uploadService.fileValidator -[async]-> jobs 'Queue validated file for processing'
 
   // Worker Processing (Event-Driven - NO API calls TO worker)
   vault.worker.consumer -[async]-> jobs 'Consume upload jobs'
   vault.worker.consumer -[uses]-> vault.worker.orchestrator 'Delegate job'
   
-  // Orchestrated Processing Pipeline
-  vault.worker.orchestrator -[uses]-> vault.worker.fileValidator 'Validate file'
+  // Orchestrated Processing Pipeline (validation already done)
   vault.worker.orchestrator -[uses]-> vault.worker.scannerClient 'Scan for viruses'
   vault.worker.scannerClient -[calls]-> scanner 'Anti-virus check'
   vault.worker.orchestrator -[uses]-> vault.worker.encryptor 'Encrypt clean file'
   vault.worker.encryptor -[writes]-> docDB 'Store encryption key'
   vault.worker.orchestrator -[uses]-> vault.worker.s3Client 'Store file'
-  vault.worker.s3Client -[writes]-> s3 'Save encrypted file'
+  vault.worker.s3Client -[writes]-> minio 'Save encrypted file (primary)'
   vault.worker.orchestrator -[uses]-> vault.worker.metadataWriter 'Update status'
   vault.worker.metadataWriter -[writes]-> docDB 'Save metadata as READY'
   
@@ -173,19 +159,11 @@ model {
   vault.worker.orchestrator -[uses]-> vault.worker.errorHandler 'On failure'
   vault.worker.errorHandler -[writes]-> docDB 'Mark as FAILED'
 
-  // Document Listing Flow - API routes to Document Service
-  vault.api.router -[calls]-> documentService 'Route list requests'
-  vault.documentService.documentManager -[reads]-> docDB 'Query metadata'
-  vault.api.router -[uses]-> frontend 'Send document list'
-  frontend -[uses]-> customer 'Display documents'
-
-  // Download Flow - API routes to Download Service
-  vault.api.router -[calls]-> downloadService 'Route download requests'
-  vault.downloadService.retrievalHandler -[reads]-> docDB 'Get file location'
-  vault.downloadService.retrievalHandler -[reads]-> s3 'Fetch encrypted file'
-  vault.downloadService.retrievalHandler -[uses]-> vault.downloadService.decryptor 'Decrypt file'
-  vault.downloadService.decryptor -[reads]-> docDB 'Retrieve encryption key'
-  downloadService -[uses]-> vault.api.router 'Stream file'
-  vault.api.router -[uses]-> frontend 'Send file'
-  frontend -[uses]-> customer 'Download complete'
+  // Retrieval Flow - Unified service with caching
+  vault.api.router -[calls]-> retrievalService 'Route list/download requests'
+  vault.retrievalService.retrievalHandler -[uses]-> vault.retrievalService.cacheManager 'Check cache'
+  vault.retrievalService.cacheManager -[reads]-> docDB 'Cache miss: fetch metadata'
+  vault.retrievalService.retrievalHandler -[reads]-> minio 'Fetch encrypted file (primary)'
+  vault.retrievalService.retrievalHandler -[uses]-> vault.retrievalService.decryptor 'Decrypt file'
+  vault.retrievalService.decryptor -[reads]-> docDB 'Retrieve encryption key'
 }

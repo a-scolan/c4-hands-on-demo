@@ -69,4 +69,16 @@ views 'Deployment' {
       -> prod.infraZone.*,
       prod.infraZone.* ->
   }
+
+  deployment view cicd {
+    title 'Pipeline & Deployments'
+    description 'Continuous integration, build, and deployment pipeline infrastructure and how it deploys to production services'
+    
+    include
+      cicd,
+      cicd.** where kind is vm,
+      prod.** where tag is #deployment,
+      -> cicd.**,
+      cicd.** ->
+  }
 }

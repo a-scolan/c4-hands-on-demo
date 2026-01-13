@@ -49,8 +49,7 @@ views 'Deployment' {
     include
       prod.dataTier,
       prod.dataTier.** where kind is vm,
-      prod.appTier.prod-document-vm,
-      prod.appTier.prod-download-vm,
+      prod.appTier.prod-retrieval-vm,
       prod.procTier.prod-worker-vm,
       -> prod.dataTier.*,
       prod.dataTier.* ->
@@ -77,7 +76,7 @@ views 'Deployment' {
 
   deployment view backup_recovery {
     title 'Backup & Disaster Recovery'
-    description 'Backup infrastructure with all protected data systems'
+    description 'Backup infrastructure with all protected data systems and cloud replication to AWS S3'
     
     include
       prod.infraZone,
@@ -86,5 +85,16 @@ views 'Deployment' {
       prod.dataTier.** where kind is vm,
       -> prod.infraZone.*,
       prod.infraZone.* ->
+  }
+  deployment view cicd {
+    title 'Pipeline & Deployments'
+    description 'Continuous integration, build, and deployment pipeline infrastructure and how it deploys to production services'
+    
+    include
+      cicd,
+      cicd.** where kind is vm,
+      prod.** where tag is #deployment,
+      -> cicd.**,
+      cicd.** ->
   }
 }

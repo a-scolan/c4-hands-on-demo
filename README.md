@@ -1,6 +1,7 @@
 # C4 Hands-On Demo - Multi-Project Architecture
 
-🔗 **[View Live Diagrams on GitHub Pages](https://a-scolan.github.io/c4-hands-on-demo/)**
+🔗 **[View Live Diagrams on GitHub Pages](https://a-scolan.github.io/c4-hands-on-demo/)**  
+📋 **[Architecture Decisions (ADR)](./ARCHITECTURE_DECISIONS.md)** - Why Kong? Why MinIO? Why remove S3?
 
 This workspace contains two **independent** LikeC4 projects demonstrating architecture evolution:
 
@@ -19,6 +20,33 @@ Refactored microservices architecture with async processing
 - **Specifications**: `spec.c4` (extended with queues, microservices, etc.)
 - **Model**: `model.c4`
 - **Views**: `views.c4` (multiple views: landscape, processing, security)
+
+### 📊 Key Architecture Views
+
+Compare the evolution from monolith to microservices:
+
+| View | Project | Description | What You'll See |
+|------|---------|-------------|-----------------|
+| **[C1 Context](https://a-scolan.github.io/c4-hands-on-demo/#/project/legacy-vault-system/view/c1_context/)** | Legacy | System boundaries | Monolithic vault, NFS storage, VirusTotal |
+| **[C2 Container](https://a-scolan.github.io/c4-hands-on-demo/#/project/legacy-vault-system/view/c2_container/)** | Legacy | Monolith internals | Spring Boot monolith with PostgreSQL + NFS |
+| **[C3 Monolith](https://a-scolan.github.io/c4-hands-on-demo/#/project/legacy-vault-system/view/c3_monolith_components/)** | Legacy | Component details | Synchronous layers: Upload → Validate → Scan → Encrypt |
+| **[Seq: Upload (Legacy)](https://a-scolan.github.io/c4-hands-on-demo/#/project/legacy-vault-system/view/seq_upload_flow/)** | Legacy | Blocking upload | Synchronous processing (10-30s user wait) |
+| **[Seq: Retrieval (Legacy)](https://a-scolan.github.io/c4-hands-on-demo/#/project/legacy-vault-system/view/seq_retrieval_flow/)** | Legacy | Document download | Direct NFS reads |
+| **[Deployment (Legacy)](https://a-scolan.github.io/c4-hands-on-demo/#/project/legacy-vault-system/view/overview/)** | Legacy | Infrastructure | 2 monolith VMs, PostgreSQL, NFS, HAProxy |
+| | | | |
+| **[C1 Context](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/c1_context/)** | Refactored | System boundaries | Vault system, MinIO storage, VirusTotal API |
+| **[C2 Container](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/c2_container/)** | Refactored | Microservices | Kong, Upload, Retrieval (merged), Worker, Queue, MongoDB |
+| **[C3 Upload Service](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/c3_upload_service/)** | Refactored | Upload internals | Fail-fast validation before queuing |
+| **[C3 Retrieval Service](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/c3_retrieval_service/)** | Refactored | Retrieval internals | Unified metadata + files with Redis cache |
+| **[C3 Worker](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/c3_processing_worker/)** | Refactored | Worker internals | Async orchestrator: Scan → Encrypt → Store |
+| **[Seq: Upload](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/seq_upload_flow/)** | Refactored | Async upload | Validate → Queue → Async processing (< 500ms response) |
+| **[Seq: Retrieval](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/seq_retrieval_flow/)** | Refactored | Cached retrieval | Check cache → Fetch MinIO → Decrypt |
+| **[Seq: HA Replication](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/seq_backup_flow/)** | Refactored | Disaster recovery | MinIO 3-node distributed replication |
+| **[Deployment Overview](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/overview/)** | Refactored | Infrastructure | 7 zones, 11 VMs, Kong, MongoDB, MinIO, CI/CD |
+| **[App Tier](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/app_tier/)** | Refactored | App deployment | Frontend, Upload, Retrieval services |
+| **[CI/CD Pipeline](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/cicd/)** | Refactored | DevOps automation | GitLab, Harbor, schema migrations |
+
+💡 **Tip:** Compare legacy vs. refactored: C1 Context → C2 Container → Seq Upload Flow to see the evolution
 
 ## 🚀 How to Use
 

@@ -49,6 +49,7 @@ deployment {
       
       // Monolith VM (Primary)
       prod-monolith-vm01 = vm 'prod-monolith-vm01' {
+        #deployment
         technology "Java 17 / Spring Boot"
           description """
             Primary monolithic application instance
@@ -70,6 +71,7 @@ deployment {
 
       // Monolith VM (Secondary - hot standby)
       prod-monolith-vm02 = vm 'prod-monolith-vm02' {
+        #deployment
         technology "Java 17 / Spring Boot"
           description """
             Secondary monolithic application instance (hot standby)
@@ -106,6 +108,7 @@ deployment {
       
       // PostgreSQL Database
       prod-database-vm = vm 'prod-database-vm' {
+        #deployment
         technology "PostgreSQL 14"
           description """
             Vault metadata and document records
@@ -130,6 +133,7 @@ deployment {
 
       // NFS Storage
       prod-nfs-vm = vm 'prod-nfs-vm' {
+        #deployment
         technology "NFS / GlusterFS"
           description """
             Encrypted file storage on shared NFS mount
@@ -169,6 +173,7 @@ deployment {
       
       // Monitoring VM
       monitoring = vm 'monitoring' {
+        #shared_infra
         technology "Prometheus + Grafana + Splunk"
           description """
             Metrics, logs, and alerting
@@ -277,6 +282,157 @@ deployment {
     }
     backup -[nfs]-> prod-nfs-vm 'Backup files' {
       description "ephemeral -> 2049 (NFS)"
+    }
+  }
+
+  // CI/CD Infrastructure
+  environment cicd 'CI/CD Pipeline Infrastructure' {
+    #cicd
+    description """
+      Continuous Integration and Continuous Deployment infrastructure
+      for automated testing and deployment of the monolithic application
+    """
+
+    cicdZone = zone 'CI/CD Tools Zone (VLAN 200: 10.200.0.0/24)' {
+      #pipeline
+      description """
+        Development and deployment automation tools
+        
+        | Property | Value |
+        |:---------|:------|
+        | VLAN | 200 |
+        | Network | 10.200.0.0/24 |
+        | Gateway | 10.200.0.1 |
+      """
+
+      // Git Repository
+      git-server-vm = vm 'git-server-vm' {
+        #shared_infra
+        technology "GitLab / GitHub Enterprise"
+        description """
+          Git repository server for source code management
+          
+          | Property | Value |
+          |:---------|:------|
+          | eth0 | 10.200.0.10/24 |
+          | OS | Ubuntu 22.04 LTS |
+          | CPU | 8 vCPU |
+          | RAM | 16 GB |
+          | Storage | 500 GB SSD |
+        """
+      }
+
+      // CI/CD Pipeline Server
+      cicd-pipeline-vm = vm 'cicd-pipeline-vm' {
+        #shared_infra
+        technology "GitLab CI / Jenkins"
+        description """
+          CI/CD pipeline orchestration and build coordination
+          
+          | Property | Value |
+          |:---------|:------|
+          | eth0 | 10.200.0.11/24 |
+          | OS | Ubuntu 22.04 LTS |
+          | CPU | 16 vCPU |
+          | RAM | 32 GB |
+          | Storage | 1 TB SSD |
+          | Concurrent Jobs | 20 |
+        """
+      }
+
+      // Docker Registry
+      registry-vm = vm 'registry-vm' {
+        #shared_infra
+        technology "Docker Registry / Harbor"
+        description """
+          Container image registry for built artifacts
+          
+          | Property | Value |
+          |:---------|:------|
+          | eth0 | 10.200.0.12/24 |
+          | OS | Ubuntu 22.04 LTS |
+          | CPU | 8 vCPU |
+          | RAM | 16 GB |
+          | Storage | 5 TB SSD |
+          | Replication | 3-node cluster |
+        """
+      }
+
+      // Artifact Repository
+      artifact-repo-vm = vm 'artifact-repo-vm' {
+        #shared_infra
+        technology "Nexus / Artifactory"
+        description """
+          Build artifacts and dependency repository
+          
+          | Property | Value |
+          |:---------|:------|
+          | eth0 | 10.200.0.13/24 |
+          | OS | Ubuntu 22.04 LTS |
+          | CPU | 8 vCPU |
+          | RAM | 16 GB |
+          | Storage | 2 TB SSD |
+        """
+      }
+    }
+
+    // Relationships: Deployments to CI/CD infrastructure
+    cicd-pipeline-vm -[https]-> git-server-vm 'Pull code' {
+      #deployment_automation
+      description "Pull monolith code from repository"
+    }
+
+    cicd-pipeline-vm -[https]-> artifact-repo-vm 'Store artifacts' {
+      #deployment_automation
+      description "Store compiled binaries and artifacts"
+    }
+
+    // CI/CD pipeline orchestrates deployments
+    cicd-pipeline-vm -[https]-> prod.appTier.prod-monolith-vm01 'Deploy Monolith (Primary)' {
+      #deployment_automation
+      description "Trigger Monolith deployment to primary instance"
+    }
+
+    cicd-pipeline-vm -[https]-> prod.appTier.prod-monolith-vm02 'Deploy Monolith (Secondary)' {
+      #deployment_automation
+      description "Trigger Monolith deployment to secondary instance"
+    }
+
+    cicd-pipeline-vm -[https]-> prod.dataTier.prod-database-vm 'Deploy Database' {
+      #deployment_automation
+      description "Trigger PostgreSQL deployment and schema migrations"
+    }
+
+    // Database schema migrations from artifact repository
+    prod.dataTier.prod-database-vm -[https]-> artifact-repo-vm 'Pull schema migrations' {
+      #deployment_automation
+      description "Pull database migration scripts (Flyway/Liquibase)"
+    }
+
+    cicd-pipeline-vm -[https]-> prod.dataTier.prod-nfs-vm 'Deploy Storage' {
+      #deployment_automation
+      description "Trigger NFS storage deployment"
+    }
+
+    // VMs pull compiled artifacts from repository
+    prod.appTier.prod-monolith-vm01 -[https]-> artifact-repo-vm 'Pull binaries' {
+      #deployment_automation
+      description "Pull compiled Monolith binary"
+    }
+
+    prod.appTier.prod-monolith-vm02 -[https]-> artifact-repo-vm 'Pull binaries' {
+      #deployment_automation
+      description "Pull compiled Monolith binary"
+    }
+
+    prod.dataTier.prod-database-vm -[https]-> artifact-repo-vm 'Pull binaries' {
+      #deployment_automation
+      description "Pull PostgreSQL binary"
+    }
+
+    prod.dataTier.prod-nfs-vm -[https]-> artifact-repo-vm 'Pull binaries' {
+      #deployment_automation
+      description "Pull NFS storage binary"
     }
   }
 }

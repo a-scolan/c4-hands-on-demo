@@ -28,8 +28,9 @@ views {
   view c3_frontend {
     title 'C3 / Frontend'
     include customer
-    include vault.*
-    include vault.frontend.*
+    include vault.monolith
+    include vault.monolith.frontend
+    include vault.monolith.frontend.*
     
     rank source {
       customer

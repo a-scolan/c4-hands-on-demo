@@ -20,7 +20,8 @@ deployment {
       
     // API Gateway exposed at the edge (replaces LB)
     prod-apigw-vm = vm 'prod-apigw-vm' {
-        technology "Node.js / Express"
+        #shared_infra
+        technology "Kong / API Gateway"
           description """
             Edge API gateway terminates TLS and routes to backend services
           
@@ -54,6 +55,7 @@ deployment {
       
       // Frontend VM
       prod-frontend-vm = vm 'prod-frontend-vm' {
+        #deployment
         technology "Node.js"
         description """
           React SPA and API Gateway proxy
@@ -74,9 +76,10 @@ deployment {
 
       // Upload Service VM
       prod-upload-vm = vm 'prod-upload-vm' {
+        #deployment
         technology "Node.js + Docker"
         description """
-          File upload handler service
+          File upload handler and validation service (fail-fast validation)
           
           | Property | Value |
           |:---------|:------|
@@ -92,43 +95,25 @@ deployment {
         }
       }
 
-      // Document Service VM
-      prod-document-vm = vm 'prod-document-vm' {
-        technology "Node.js + Docker"
+      // Retrieval Service VM (merged Document + Download)
+      prod-retrieval-vm = vm 'prod-retrieval-vm' {
+        #deployment
+        technology "GoLang + Docker + Redis"
         description """
-          Document metadata management
+          Unified metadata queries and file retrieval with caching
           
           | Property | Value |
           |:---------|:------|
           | eth0 | 10.1.0.13/24 |
           | OS | Ubuntu 22.04 LTS |
-          | CPU | 2 vCPU |
-          | RAM | 4 GB |
-          | Port | 3002 |
-        """
-        
-        documentApp = app 'Document Service App' {
-          instanceOf vault.documentService
-        }
-      }
-
-      // Download Service VM
-      prod-download-vm = vm 'prod-download-vm' {
-        technology "GoLang + Docker"
-        description """
-          File retrieval and decryption
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.1.0.14/24 |
-          | OS | Ubuntu 22.04 LTS |
           | CPU | 4 vCPU |
           | RAM | 8 GB |
-          | Port | 3003 |
+          | Port | 3002 |
+          | Cache | Redis (local) |
         """
         
-        downloadApp = app 'Download Service App' {
-          instanceOf vault.downloadService
+        retrievalApp = app 'Retrieval Service App' {
+          instanceOf vault.retrievalService
         }
       }
     }
@@ -148,6 +133,7 @@ deployment {
       
       // Worker VM
       prod-worker-vm = vm 'prod-worker-vm' {
+        #deployment
         technology "GoLang + Docker"
         description """
           Async job consumer and processor
@@ -168,6 +154,7 @@ deployment {
 
       // Queue Broker VM
       prod-queue-vm = vm 'prod-queue-vm' {
+        #deployment
         technology "RabbitMQ"
         description """
           Async job queue broker
@@ -203,6 +190,7 @@ deployment {
       
       // MongoDB Cluster
       prod-database-vm = vm 'prod-database-vm' {
+        #deployment
         technology "MongoDB 6.0"
         description """
           Encrypted document metadata storage
@@ -224,11 +212,12 @@ deployment {
         }
       }
 
-      // S3-compatible Storage
+      // MinIO Object Storage (Primary)
       prod-storage-vm = vm 'prod-storage-vm' {
-        technology "MinIO / AWS S3"
+        #deployment
+        technology "MinIO"
         description """
-          Encrypted file storage (cold)
+          Primary encrypted object storage (on-premises)
           
           | Property | Value |
           |:---------|:------|
@@ -242,7 +231,7 @@ deployment {
         """
         
         storageApp = app 'MinIO Instance' {
-          instanceOf s3
+          instanceOf minio
         }
       }
     }
@@ -263,6 +252,7 @@ deployment {
       
       // Monitoring VM
       monitoring = vm 'monitoring' {
+        #shared_infra
         technology "Prometheus + Grafana + ELK"
         description """
           Metrics, logs, and alerting
@@ -336,13 +326,9 @@ deployment {
       #service #routing
       description "443 -> 3001"
     }
-    prod-apigw-vm -[https]-> prod-document-vm 'Route metadata ops' {
+    prod-apigw-vm -[https]-> prod-retrieval-vm 'Route list/download' {
       #service #routing
       description "443 -> 3002"
-    }
-    prod-apigw-vm -[https]-> prod-download-vm 'Route downloads' {
-      #service #routing
-      description "443 -> 3003"
     }
     prod-upload-vm -[amqp]-> prod-queue-vm 'Publish jobs' {
       #service #messaging
@@ -356,16 +342,13 @@ deployment {
       #service #persistence
       description "ephemeral -> 9000-9001 (MinIO)"
     }
-    prod-download-vm -[tcp]-> prod-database-vm 'Fetch metadata/keys' {
+    prod-retrieval-vm -[tcp]-> prod-database-vm 'Fetch metadata/keys' {
       #service #persistence
       description "ephemeral -> 27017"
     }
-    prod-download-vm -[tcp]-> prod-storage-vm 'Fetch objects' {
+    prod-retrieval-vm -[tcp]-> prod-storage-vm 'Fetch objects' {
       #service #persistence
       description "ephemeral -> 9000-9001 (MinIO)"
-    }
-    prod-document-vm -[tcp]-> prod-database-vm 'CRUD metadata' {
-      description "ephemeral -> 27017"
     }
 
     // Security and monitoring flows
@@ -381,11 +364,7 @@ deployment {
       #monitoring #observability
       description "ephemeral -> 9090"
     }
-    monitoring -[tcp]-> prod-document-vm 'Scrape metrics' {
-      #monitoring #observability
-      description "ephemeral -> 9090"
-    }
-    monitoring -[tcp]-> prod-download-vm 'Scrape metrics' {
+    monitoring -[tcp]-> prod-retrieval-vm 'Scrape metrics' {
       #monitoring #observability
       description "ephemeral -> 9090"
     }
@@ -413,6 +392,192 @@ deployment {
     backup -[tcp]-> prod-storage-vm 'Backup objects' {
       #backup #recovery
       description "ephemeral -> 9000-9001 (MinIO replication)"
+    }
+  }
+
+  // CI/CD Infrastructure
+  environment cicd 'CI/CD Pipeline Infrastructure' {
+    #cicd
+    description """
+      Continuous Integration and Continuous Deployment infrastructure
+      for automated testing and deployment of microservices
+    """
+
+    cicdZone = zone 'CI/CD Tools Zone (VLAN 200: 10.200.0.0/24)' {
+      #pipeline
+      description """
+        Development and deployment automation tools
+        
+        | Property | Value |
+        |:---------|:------|
+        | VLAN | 200 |
+        | Network | 10.200.0.0/24 |
+        | Gateway | 10.200.0.1 |
+      """
+
+      // Git Repository
+      git-server-vm = vm 'git-server-vm' {
+        #shared_infra
+        technology "GitLab / GitHub Enterprise"
+        description """
+          Git repository server for source code management
+          
+          | Property | Value |
+          |:---------|:------|
+          | eth0 | 10.200.0.10/24 |
+          | OS | Ubuntu 22.04 LTS |
+          | CPU | 8 vCPU |
+          | RAM | 16 GB |
+          | Storage | 500 GB SSD |
+        """
+      }
+
+      // CI/CD Pipeline Server
+      cicd-pipeline-vm = vm 'cicd-pipeline-vm' {
+        #shared_infra
+        technology "GitLab CI / Jenkins"
+        description """
+          CI/CD pipeline orchestration and build coordination
+          
+          | Property | Value |
+          |:---------|:------|
+          | eth0 | 10.200.0.11/24 |
+          | OS | Ubuntu 22.04 LTS |
+          | CPU | 16 vCPU |
+          | RAM | 32 GB |
+          | Storage | 1 TB SSD |
+          | Concurrent Jobs | 20 |
+        """
+      }
+
+      // Docker Registry
+      registry-vm = vm 'registry-vm' {
+        #shared_infra
+        technology "Docker Registry / Harbor"
+        description """
+          Container image registry for built artifacts
+          
+          | Property | Value |
+          |:---------|:------|
+          | eth0 | 10.200.0.12/24 |
+          | OS | Ubuntu 22.04 LTS |
+          | CPU | 8 vCPU |
+          | RAM | 16 GB |
+          | Storage | 5 TB SSD |
+          | Replication | 3-node cluster |
+        """
+      }
+
+      // Artifact Repository
+      artifact-repo-vm = vm 'artifact-repo-vm' {
+        #shared_infra
+        technology "Nexus / Artifactory"
+        description """
+          Build artifacts and dependency repository
+          
+          | Property | Value |
+          |:---------|:------|
+          | eth0 | 10.200.0.13/24 |
+          | OS | Ubuntu 22.04 LTS |
+          | CPU | 8 vCPU |
+          | RAM | 16 GB |
+          | Storage | 2 TB SSD |
+        """
+      }
+    }
+
+    // Relationships: Deployments to CI/CD infrastructure
+    cicd-pipeline-vm -[https]-> git-server-vm 'Pull code' {
+      #deployment_automation
+      description "Pull microservice code from repository"
+    }
+
+    cicd-pipeline-vm -[https]-> registry-vm 'Push images' {
+      #deployment_automation
+      description "Push built container images to registry"
+    }
+
+    cicd-pipeline-vm -[https]-> artifact-repo-vm 'Store artifacts' {
+      #deployment_automation
+      description "Store build artifacts and dependencies"
+    }
+
+    // CI/CD pipeline orchestrates deployments
+    cicd-pipeline-vm -[https]-> prod.appTier.prod-frontend-vm 'Deploy Frontend' {
+      #deployment_automation
+      description "Trigger Frontend deployment"
+    }
+
+    cicd-pipeline-vm -[https]-> prod.appTier.prod-upload-vm 'Deploy Upload Service' {
+      #deployment_automation
+      description "Trigger Upload Service deployment"
+    }
+
+    cicd-pipeline-vm -[https]-> prod.appTier.prod-retrieval-vm 'Deploy Retrieval Service' {
+      #deployment_automation
+      description "Trigger Retrieval Service deployment"
+    }
+
+    cicd-pipeline-vm -[https]-> prod.procTier.prod-worker-vm 'Deploy Worker' {
+      #deployment_automation
+      description "Trigger Worker deployment"
+    }
+
+    cicd-pipeline-vm -[https]-> prod.procTier.prod-queue-vm 'Deploy Queue' {
+      #deployment_automation
+      description "Trigger RabbitMQ deployment"
+    }
+
+    cicd-pipeline-vm -[https]-> prod.dataTier.prod-database-vm 'Deploy Database' {
+      #deployment_automation
+      description "Trigger MongoDB deployment and schema migrations"
+    }
+
+    // Database schema migrations from artifact repository
+    prod.dataTier.prod-database-vm -[https]-> artifact-repo-vm 'Pull schema migrations' {
+      #deployment_automation
+      description "Pull database migration scripts (MongoDB migrations)"
+    }
+
+    cicd-pipeline-vm -[https]-> prod.dataTier.prod-storage-vm 'Deploy Storage' {
+      #deployment_automation
+      description "Trigger MinIO deployment"
+    }
+
+    // VMs pull images from registry
+    prod.appTier.prod-frontend-vm -[https]-> registry-vm 'Pull Frontend image' {
+      #deployment_automation
+      description "Pull container image from registry"
+    }
+
+    prod.appTier.prod-upload-vm -[https]-> registry-vm 'Pull Upload image' {
+      #deployment_automation
+      description "Pull container image from registry"
+    }
+
+    prod.appTier.prod-retrieval-vm -[https]-> registry-vm 'Pull Retrieval image' {
+      #deployment_automation
+      description "Pull container image from registry"
+    }
+
+    prod.procTier.prod-worker-vm -[https]-> registry-vm 'Pull Worker image' {
+      #deployment_automation
+      description "Pull container image from registry"
+    }
+
+    prod.procTier.prod-queue-vm -[https]-> registry-vm 'Pull Queue image' {
+      #deployment_automation
+      description "Pull RabbitMQ image from registry"
+    }
+
+    prod.dataTier.prod-database-vm -[https]-> registry-vm 'Pull Database image' {
+      #deployment_automation
+      description "Pull MongoDB image from registry"
+    }
+
+    prod.dataTier.prod-storage-vm -[https]-> registry-vm 'Pull Storage image' {
+      #deployment_automation
+      description "Pull MinIO image from registry"
     }
   }
 }

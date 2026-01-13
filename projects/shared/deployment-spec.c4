@@ -3,15 +3,6 @@
 // Complements spec.c4 with deployment-only elements
 
 specification {
-  // Define custom colors using rgb format for better compatibility
-  color lb-blue rgb(59, 130, 246)
-  color fw-red rgb(220, 38, 38)
-  color net-green rgb(16, 185, 129)
-  color prod-green rgb(5, 150, 105)
-  color infra-blue rgb(2, 132, 199)
-  color net-blue rgb(37, 99, 235)
-  color deploy-purple rgb(124, 58, 237)
-
   // Deployment node kinds (unique to deployment model)
   deploymentNode environment
 
@@ -27,12 +18,13 @@ specification {
 
   deploymentNode app {
     notation 'Application Instance'
-    style {
-      color deploy-purple
-    }
   }
 
   deploymentNode container
+
+  deploymentNode cicdNode {
+    notation 'CI/CD Infrastructure'
+  }
 
   // Deployment relationship kinds
   relationship http
@@ -55,7 +47,7 @@ specification {
   }
 
   tag deployment {
-    color rgb(124, 58, 237)
+    color rgb(84, 34, 170)
   }
 
   // Relationship tags for legend
@@ -65,10 +57,6 @@ specification {
 
   tag routing {
     color rgb(59, 130, 246)
-  }
-
-  tag filtering {
-    color rgb(248, 113, 113)
   }
 
   tag messaging {
@@ -105,4 +93,21 @@ specification {
 
   tag recovery {
     color rgb(129, 140, 248)
-  }}
+  }
+
+  tag shared_infra {
+    color rgb(139, 92, 246)
+  }
+
+  tag cicd {
+    color rgb(217, 70, 239)
+  }
+
+  tag pipeline {
+    color rgb(236, 72, 153)
+  }
+
+  tag deployment_automation {
+    color rgb(168, 85, 247)
+  }
+}
