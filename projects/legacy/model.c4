@@ -135,6 +135,5 @@ model {
   vault.monolith.documentService -[reads]-> vault.disk 'Read encrypted file (blocking)'
   vault.monolith.documentService -[uses]-> vault.monolith.decryptor 'Decrypt file'
   vault.monolith.decryptor -[reads]-> vault.db 'Retrieve encryption key'
-  vault.monolith.decryptor -[uses]-> vault.monolith.frontend 'Return decrypted file'
   vault.monolith.frontend -[uses]-> customer 'Download file'
 }

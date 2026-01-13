@@ -21,11 +21,7 @@ views 'Deployment' {
       prod.procTier.queue_vm,
       prod.dataTier,
       prod.dataTier.db_vm,
-      prod.dataTier.storage_vm,
-      prod.secZone,
-      prod.secZone.firewall,
-      prod.secZone.monitoring,
-      *
+      prod.dataTier.storage_vm
   }
 
   deployment view app_tier {
@@ -42,7 +38,6 @@ views 'Deployment' {
       prod.procTier.queue_vm,
       prod.dataTier.db_vm,
       prod.dataTier.storage_vm,
-      prod.secZone.monitoring,
       -> prod.appTier.*,
       prod.appTier.* ->
   }
@@ -58,7 +53,6 @@ views 'Deployment' {
       prod.appTier.upload_vm,
       prod.dataTier.db_vm,
       prod.dataTier.storage_vm,
-      prod.secZone.monitoring,
       -> prod.procTier.*,
       prod.procTier.* ->
   }
@@ -74,7 +68,6 @@ views 'Deployment' {
       prod.appTier.document_vm,
       prod.appTier.download_vm,
       prod.procTier.worker_vm,
-      prod.secZone.monitoring,
       -> prod.dataTier.*,
       prod.dataTier.* ->
   }

@@ -16,12 +16,7 @@ views 'Deployment' {
       prod.appTier.monolith_secondary,
       prod.dataTier,
       prod.dataTier.db_vm,
-      prod.dataTier.nfs_vm,
-      prod.secZone,
-      prod.secZone.firewall,
-      prod.secZone.monitoring,
-      prod.secZone.backup,
-      *
+      prod.dataTier.nfs_vm
   }
 
   deployment view app_tier {
@@ -35,7 +30,6 @@ views 'Deployment' {
       prod.dmz.lb,
       prod.dataTier.db_vm,
       prod.dataTier.nfs_vm,
-      prod.secZone.monitoring,
       -> prod.appTier.*,
       prod.appTier.* ->
   }
@@ -50,8 +44,6 @@ views 'Deployment' {
       prod.dataTier.nfs_vm,
       prod.appTier.monolith_primary,
       prod.appTier.monolith_secondary,
-      prod.secZone.monitoring,
-      prod.secZone.backup,
       -> prod.dataTier.*,
       prod.dataTier.* ->
   }

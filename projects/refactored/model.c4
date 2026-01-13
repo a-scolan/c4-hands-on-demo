@@ -176,7 +176,6 @@ model {
   // Document Listing Flow - API routes to Document Service
   vault.api.router -[calls]-> documentService 'Route list requests'
   vault.documentService.documentManager -[reads]-> docDB 'Query metadata'
-  documentService -[uses]-> vault.api.router 'Return list'
   vault.api.router -[uses]-> frontend 'Send document list'
   frontend -[uses]-> customer 'Display documents'
 
@@ -186,7 +185,6 @@ model {
   vault.downloadService.retrievalHandler -[reads]-> s3 'Fetch encrypted file'
   vault.downloadService.retrievalHandler -[uses]-> vault.downloadService.decryptor 'Decrypt file'
   vault.downloadService.decryptor -[reads]-> docDB 'Retrieve encryption key'
-  vault.downloadService.decryptor -[uses]-> vault.downloadService.retrievalHandler 'Return decrypted data'
   downloadService -[uses]-> vault.api.router 'Stream file'
   vault.api.router -[uses]-> frontend 'Send file'
   frontend -[uses]-> customer 'Download complete'
