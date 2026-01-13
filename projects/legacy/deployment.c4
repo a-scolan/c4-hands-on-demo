@@ -9,7 +9,7 @@ deployment {
   zone dmz 'Network DMZ (VLAN 100: 10.0.0.0/24)' {
       #networking
       description """
-        Perimeter security zone
+        Perimeter security zone with edge services
         
         | Property | Value |
         |:---------|:------|
@@ -19,7 +19,7 @@ deployment {
       """
       
       // Load Balancer for frontend
-      lb = vm 'Load Balancer' {
+      prod-lb-vm = vm 'prod-lb-vm' {
         technology "HAProxy"
           description """
             SSL termination, traffic distribution
@@ -48,7 +48,7 @@ deployment {
       """
       
       // Monolith VM (Primary)
-      monolith_primary = vm 'Monolith Primary' {
+      prod-monolith-vm01 = vm 'prod-monolith-vm01' {
         technology "Java 17 / Spring Boot"
           description """
             Primary monolithic application instance
@@ -69,7 +69,7 @@ deployment {
       }
 
       // Monolith VM (Secondary - hot standby)
-      monolith_secondary = vm 'Monolith Secondary' {
+      prod-monolith-vm02 = vm 'prod-monolith-vm02' {
         technology "Java 17 / Spring Boot"
           description """
             Secondary monolithic application instance (hot standby)
@@ -105,7 +105,7 @@ deployment {
       """
       
       // PostgreSQL Database
-      db_vm = vm 'Relational Database' {
+      prod-database-vm = vm 'prod-database-vm' {
         technology "PostgreSQL 14"
           description """
             Vault metadata and document records
@@ -129,7 +129,7 @@ deployment {
       }
 
       // NFS Storage
-      nfs_vm = vm 'Network Storage (NFS)' {
+      prod-nfs-vm = vm 'prod-nfs-vm' {
         technology "NFS / GlusterFS"
           description """
             Encrypted file storage on shared NFS mount
@@ -153,11 +153,12 @@ deployment {
       }
     }
 
-  // Security Zone
+  // Security Zone - Intermediate security appliances
+  // Security Zone - Monitoring and observability
   secZone = zone 'Security & Monitoring (VLAN 103: 10.3.0.0/24)' {
       #security
       description """
-        Firewall, monitoring, and backup
+        Monitoring, logging, and observability infrastructure
         
         | Property | Value |
         |:---------|:------|
@@ -166,23 +167,8 @@ deployment {
         | Gateway | 10.3.0.1 |
       """
       
-      // Firewall
-      firewall = vm 'Firewall / WAF' {
-        technology "pfSense / ModSecurity"
-          description """
-            Stateful firewall and DDoS protection
-          
-            | Property | Value |
-            |:---------|:------|
-            | eth0 | 10.3.0.1/24 |
-            | OS | FreeBSD |
-            | CPU | 8 vCPU |
-            | RAM | 16 GB |
-          """
-      }
-
       // Monitoring VM
-      monitoring = vm 'Monitoring Stack' {
+      monitoring = vm 'monitoring' {
         technology "Prometheus + Grafana + Splunk"
           description """
             Metrics, logs, and alerting
@@ -196,16 +182,30 @@ deployment {
             | Disk | 2 TB SSD |
           """
       }
+    }
 
+  // Infrastructure Zone - Backup and disaster recovery
+  infraZone = zone 'Backup & Disaster Recovery (VLAN 105: 10.5.0.0/24)' {
+      #infrastructure
+      description """
+        Backup, replication, and disaster recovery infrastructure
+        
+        | Property | Value |
+        |:---------|:------|
+        | VLAN | 105 |
+        | Network | 10.5.0.0/24 |
+        | Gateway | 10.5.0.1 |
+      """
+      
       // Backup VM
-      backup = vm 'Backup Storage' {
+      backup = vm 'backup' {
         technology "Bacula / Veeam"
           description """
             Offsite backup and disaster recovery
           
             | Property | Value |
             |:---------|:------|
-            | eth0 | 10.3.0.20/24 |
+            | eth0 | 10.5.0.20/24 |
             | OS | CentOS 8 |
             | CPU | 4 vCPU |
             | RAM | 8 GB |
@@ -215,66 +215,67 @@ deployment {
       }
     }
 
-    // Inter-zone routing and firewall intents (surface ports and gateways)
+    // Inter-zone routing intents
     dmz -[https]-> appTier 'Ingress web traffic' {
+      #ingress #routing
       description "ephemeral (443) -> 8080 via gateways 10.0.0.1 -> 10.1.0.1"
     }
-    firewall -[tcp]-> dmz 'Filter ingress traffic' {
-      description "443 (HTTPS ingress)"
-    }
-    firewall -[tcp]-> appTier 'Filter app tier traffic' {
-      description "ephemeral -> 8080 (monolith)"
-    }
-    firewall -[tcp]-> dataTier 'Filter data tier traffic' {
-      description "ephemeral -> 5432 (PostgreSQL), 2049 (NFS)"
-    }
     appTier -[tcp]-> dataTier 'Metadata and file IO' {
+      #persistence #data
       description "ephemeral -> 5432 (PostgreSQL), 2049 (NFS) via gateways 10.1.0.1 -> 10.2.0.1"
     }
 
     // Service-level flows to derive firewall rules
-    lb -[https]-> monolith_primary 'Route primary' {
+    prod-lb-vm -[https]-> prod-monolith-vm01 'Route primary' {
+      #service #routing
       description "443 -> 8080"
     }
-    lb -[https]-> monolith_secondary 'Route standby' {
+    prod-lb-vm -[https]-> prod-monolith-vm02 'Route standby' {
+      #service #routing
       description "443 -> 8080"
     }
-    monolith_primary -[tcp]-> db_vm 'Persist metadata' {
+    prod-monolith-vm01 -[tcp]-> prod-database-vm 'Persist metadata' {
+      #service #persistence
       description "ephemeral -> 5432"
     }
-    monolith_secondary -[tcp]-> db_vm 'Persist metadata (failover)' {
+    prod-monolith-vm02 -[tcp]-> prod-database-vm 'Persist metadata (failover)' {
+      #service #persistence
       description "ephemeral -> 5432"
     }
-    monolith_primary -[nfs]-> nfs_vm 'Store files' {
+    prod-monolith-vm01 -[nfs]-> prod-nfs-vm 'Store files' {
+      #service #persistence
       description "ephemeral -> 2049 (NFS)"
     }
-    monolith_secondary -[nfs]-> nfs_vm 'Store files (standby)' {
+    prod-monolith-vm02 -[nfs]-> prod-nfs-vm 'Store files (standby)' {
       description "ephemeral -> 2049 (NFS)"
     }
 
     // Security and monitoring flows
-    monitoring -[tcp]-> lb 'Scrape metrics' {
+    monitoring -[tcp]-> prod-lb-vm 'Scrape metrics' {
+      #monitoring #observability
       description "ephemeral -> 9000 (HAProxy stats)"
     }
-    monitoring -[tcp]-> monolith_primary 'Scrape metrics' {
+    monitoring -[tcp]-> prod-monolith-vm01 'Scrape metrics' {
+      #monitoring #observability
       description "ephemeral -> 8080 (actuator)"
     }
-    monitoring -[tcp]-> monolith_secondary 'Scrape metrics' {
+    monitoring -[tcp]-> prod-monolith-vm02 'Scrape metrics' {
+      #monitoring #observability
       description "ephemeral -> 8080 (actuator)"
     }
-    monitoring -[tcp]-> db_vm 'Scrape metrics' {
+    monitoring -[tcp]-> prod-database-vm 'Scrape metrics' {
+      #monitoring #observability
       description "ephemeral -> 5432 (PostgreSQL stats)"
     }
-    monitoring -[tcp]-> nfs_vm 'Scrape metrics' {
+    monitoring -[tcp]-> prod-nfs-vm 'Scrape metrics' {
+      #monitoring #observability
       description "ephemeral -> 2049 (NFS stats)"
     }
-    monitoring -[tcp]-> firewall 'Scrape firewall logs' {
-      description "ephemeral -> 8834 (pfSense management)"
-    }
-    backup -[tcp]-> db_vm 'Backup database' {
+    backup -[tcp]-> prod-database-vm 'Backup database' {
+      #backup #recovery
       description "ephemeral -> 5432"
     }
-    backup -[nfs]-> nfs_vm 'Backup files' {
+    backup -[nfs]-> prod-nfs-vm 'Backup files' {
       description "ephemeral -> 2049 (NFS)"
     }
   }

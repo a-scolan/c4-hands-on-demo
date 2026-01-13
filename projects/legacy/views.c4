@@ -24,6 +24,18 @@ views {
     }
   }
 
+  // Component View: Frontend internals
+  view c3_frontend {
+    title 'C3 / Frontend'
+    include customer
+    include vault.*
+    include vault.frontend.*
+    
+    rank source {
+      customer
+    }
+  }
+
   // Component View: Monolith details
   view c3_monolith_components {
     title 'C3 / Monolith'

@@ -9,7 +9,7 @@ deployment {
   zone dmz 'Network DMZ (VLAN 100: 10.0.0.0/24)' {
       #networking
       description """
-        Perimeter security zone
+        Perimeter security zone with edge services
         
         | Property | Value |
         |:---------|:------|
@@ -19,7 +19,7 @@ deployment {
       """
       
     // API Gateway exposed at the edge (replaces LB)
-    api_gateway = vm 'API Gateway' {
+    prod-apigw-vm = vm 'prod-apigw-vm' {
         technology "Node.js / Express"
           description """
             Edge API gateway terminates TLS and routes to backend services
@@ -53,7 +53,7 @@ deployment {
       """
       
       // Frontend VM
-      frontend_vm = vm 'Frontend Server' {
+      prod-frontend-vm = vm 'prod-frontend-vm' {
         technology "Node.js"
         description """
           React SPA and API Gateway proxy
@@ -73,7 +73,7 @@ deployment {
       }
 
       // Upload Service VM
-      upload_vm = vm 'Upload Service' {
+      prod-upload-vm = vm 'prod-upload-vm' {
         technology "Node.js + Docker"
         description """
           File upload handler service
@@ -93,7 +93,7 @@ deployment {
       }
 
       // Document Service VM
-      document_vm = vm 'Document Service' {
+      prod-document-vm = vm 'prod-document-vm' {
         technology "Node.js + Docker"
         description """
           Document metadata management
@@ -113,7 +113,7 @@ deployment {
       }
 
       // Download Service VM
-      download_vm = vm 'Download Service' {
+      prod-download-vm = vm 'prod-download-vm' {
         technology "GoLang + Docker"
         description """
           File retrieval and decryption
@@ -147,7 +147,7 @@ deployment {
       """
       
       // Worker VM
-      worker_vm = vm 'Processing Worker' {
+      prod-worker-vm = vm 'prod-worker-vm' {
         technology "GoLang + Docker"
         description """
           Async job consumer and processor
@@ -167,7 +167,7 @@ deployment {
       }
 
       // Queue Broker VM
-      queue_vm = vm 'Message Queue' {
+      prod-queue-vm = vm 'prod-queue-vm' {
         technology "RabbitMQ"
         description """
           Async job queue broker
@@ -202,7 +202,7 @@ deployment {
       """
       
       // MongoDB Cluster
-      db_vm = vm 'Document Database' {
+      prod-database-vm = vm 'prod-database-vm' {
         technology "MongoDB 6.0"
         description """
           Encrypted document metadata storage
@@ -225,7 +225,7 @@ deployment {
       }
 
       // S3-compatible Storage
-      storage_vm = vm 'Object Storage' {
+      prod-storage-vm = vm 'prod-storage-vm' {
         technology "MinIO / AWS S3"
         description """
           Encrypted file storage (cold)
@@ -247,11 +247,12 @@ deployment {
       }
     }
 
-  // Security Zone
+  // Security Zone - Monitoring and observability
   secZone = zone 'Security & Monitoring (VLAN 104: 10.4.0.0/24)' {
       #security
       description """
-        Firewall, monitoring, and backup
+        Monitoring, logging, and observability infrastructure
+        Firewall is implicit at zone boundary
         
         | Property | Value |
         |:---------|:------|
@@ -260,23 +261,8 @@ deployment {
         | Gateway | 10.4.0.1 |
       """
       
-      // Firewall
-      firewall = vm 'Firewall / WAF' {
-        technology "pfSense / ModSecurity"
-        description """
-          Stateful firewall and DDoS protection
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.4.0.1/24 |
-          | OS | FreeBSD |
-          | CPU | 8 vCPU |
-          | RAM | 16 GB |
-        """
-      }
-
       // Monitoring VM
-      monitoring = vm 'Monitoring Stack' {
+      monitoring = vm 'monitoring' {
         technology "Prometheus + Grafana + ELK"
         description """
           Metrics, logs, and alerting
@@ -292,94 +278,141 @@ deployment {
       }
     }
 
-    // Inter-zone routing and firewall intents
+  // Infrastructure Zone - Backup and disaster recovery
+  infraZone = zone 'Backup & Disaster Recovery (VLAN 105: 10.5.0.0/24)' {
+      #infrastructure
+      description """
+        Backup, replication, and disaster recovery infrastructure
+        
+        | Property | Value |
+        |:---------|:------|
+        | VLAN | 105 |
+        | Network | 10.5.0.0/24 |
+        | Gateway | 10.5.0.1 |
+      """
+      
+      // Backup VM
+      backup = vm 'backup' {
+        technology "Bacula / Veeam"
+        description """
+          Offsite backup and disaster recovery
+          
+          | Property | Value |
+          |:---------|:------|
+          | eth0 | 10.5.0.20/24 |
+          | OS | Ubuntu 22.04 LTS |
+          | CPU | 4 vCPU |
+          | RAM | 8 GB |
+          | Disk | 10 TB HDD |
+          | Retention | 30 days |
+        """
+      }
+    }
+
+    // Inter-zone routing intents
     dmz -[https]-> appTier 'Ingress API traffic' {
+      #ingress #routing
       description "ephemeral (443) -> 3000-3003 via gateways 10.0.0.1 -> 10.1.0.1"
     }
-    firewall -[tcp]-> dmz 'Filter ingress traffic' {
-      description "443 (HTTPS ingress)"
-    }
-    firewall -[tcp]-> appTier 'Filter app tier traffic' {
-      description "ephemeral -> 3000-3003 (app services)"
-    }
-    firewall -[tcp]-> procTier 'Filter processing tier traffic' {
-      description "ephemeral -> 5672 (job queue)"
-    }
-    firewall -[tcp]-> dataTier 'Filter data tier traffic' {
-      description "ephemeral -> 27017 (MongoDB), 9000-9001 (MinIO)"
-    }
     appTier -[amqp]-> procTier 'Async queue traffic' {
+      #messaging #async
       description "ephemeral -> 5672 via gateways 10.1.0.1 -> 10.2.0.1"
     }
     appTier -[tcp]-> dataTier 'Service reads/writes' {
+      #persistence #data
       description "ephemeral -> 27017 (MongoDB), 9000-9001 (MinIO) via gateways 10.1.0.1 -> 10.3.0.1"
     }
     procTier -[tcp]-> dataTier 'Worker persistence' {
+      #persistence #data
       description "ephemeral -> 27017 (MongoDB), 9000-9001 (MinIO)"
     }
 
     // Service-level flows to derive firewall rules
-    api_gateway -[https]-> frontend_vm 'Serve SPA assets' {
+    prod-apigw-vm -[https]-> prod-frontend-vm 'Serve SPA assets' {
+      #service #routing
       description "443 -> 3000"
     }
-    api_gateway -[https]-> upload_vm 'Route uploads' {
+    prod-apigw-vm -[https]-> prod-upload-vm 'Route uploads' {
+      #service #routing
       description "443 -> 3001"
     }
-    api_gateway -[https]-> document_vm 'Route metadata ops' {
+    prod-apigw-vm -[https]-> prod-document-vm 'Route metadata ops' {
+      #service #routing
       description "443 -> 3002"
     }
-    api_gateway -[https]-> download_vm 'Route downloads' {
+    prod-apigw-vm -[https]-> prod-download-vm 'Route downloads' {
+      #service #routing
       description "443 -> 3003"
     }
-    upload_vm -[amqp]-> queue_vm 'Publish jobs' {
+    prod-upload-vm -[amqp]-> prod-queue-vm 'Publish jobs' {
+      #service #messaging
       description "ephemeral -> 5672"
     }
-    worker_vm -[tcp]-> db_vm 'Persist metadata' {
+    prod-worker-vm -[tcp]-> prod-database-vm 'Persist metadata' {
+      #service #persistence
       description "ephemeral -> 27017"
     }
-    worker_vm -[tcp]-> storage_vm 'Store files' {
+    prod-worker-vm -[tcp]-> prod-storage-vm 'Store files' {
+      #service #persistence
       description "ephemeral -> 9000-9001 (MinIO)"
     }
-    download_vm -[tcp]-> db_vm 'Fetch metadata/keys' {
+    prod-download-vm -[tcp]-> prod-database-vm 'Fetch metadata/keys' {
+      #service #persistence
       description "ephemeral -> 27017"
     }
-    download_vm -[tcp]-> storage_vm 'Fetch objects' {
+    prod-download-vm -[tcp]-> prod-storage-vm 'Fetch objects' {
+      #service #persistence
       description "ephemeral -> 9000-9001 (MinIO)"
     }
-    document_vm -[tcp]-> db_vm 'CRUD metadata' {
+    prod-document-vm -[tcp]-> prod-database-vm 'CRUD metadata' {
       description "ephemeral -> 27017"
     }
 
     // Security and monitoring flows
-    monitoring -[tcp]-> api_gateway 'Scrape metrics' {
+    monitoring -[tcp]-> prod-apigw-vm 'Scrape metrics' {
+      #monitoring #observability
       description "ephemeral -> 9090 (Prometheus)"
     }
-    monitoring -[tcp]-> frontend_vm 'Scrape metrics' {
+    monitoring -[tcp]-> prod-frontend-vm 'Scrape metrics' {
+      #monitoring #observability
       description "ephemeral -> 9090"
     }
-    monitoring -[tcp]-> upload_vm 'Scrape metrics' {
+    monitoring -[tcp]-> prod-upload-vm 'Scrape metrics' {
+      #monitoring #observability
       description "ephemeral -> 9090"
     }
-    monitoring -[tcp]-> document_vm 'Scrape metrics' {
+    monitoring -[tcp]-> prod-document-vm 'Scrape metrics' {
+      #monitoring #observability
       description "ephemeral -> 9090"
     }
-    monitoring -[tcp]-> download_vm 'Scrape metrics' {
+    monitoring -[tcp]-> prod-download-vm 'Scrape metrics' {
+      #monitoring #observability
       description "ephemeral -> 9090"
     }
-    monitoring -[tcp]-> worker_vm 'Scrape metrics' {
+    monitoring -[tcp]-> prod-worker-vm 'Scrape metrics' {
+      #monitoring #observability
       description "ephemeral -> 9090"
     }
-    monitoring -[tcp]-> queue_vm 'Scrape metrics' {
+    monitoring -[tcp]-> prod-queue-vm 'Scrape metrics' {
+      #monitoring #observability
       description "ephemeral -> 15672 (RabbitMQ mgmt)"
     }
-    monitoring -[tcp]-> db_vm 'Scrape metrics' {
+    monitoring -[tcp]-> prod-database-vm 'Scrape metrics' {
+      #monitoring #observability
       description "ephemeral -> 27017 (MongoDB metrics)"
     }
-    monitoring -[tcp]-> storage_vm 'Scrape metrics' {
+    monitoring -[tcp]-> prod-storage-vm 'Scrape metrics' {
       description "ephemeral -> 9000 (MinIO metrics)"
     }
-    monitoring -[tcp]-> firewall 'Scrape firewall logs' {
-      description "ephemeral -> 8834 (pfSense management)"
+
+    // Backup and disaster recovery flows
+    backup -[tcp]-> prod-database-vm 'Backup database' {
+      #backup #recovery
+      description "ephemeral -> 27017 (MongoDB dump)"
+    }
+    backup -[tcp]-> prod-storage-vm 'Backup objects' {
+      #backup #recovery
+      description "ephemeral -> 9000-9001 (MinIO replication)"
     }
   }
 }

@@ -9,14 +9,7 @@ views 'Deployment' {
     
     include
       prod,
-      prod.dmz,
-      prod.dmz.lb,
-      prod.appTier,
-      prod.appTier.monolith_primary,
-      prod.appTier.monolith_secondary,
-      prod.dataTier,
-      prod.dataTier.db_vm,
-      prod.dataTier.nfs_vm
+      prod.** where kind is vm
   }
 
   deployment view app_tier {
@@ -25,11 +18,11 @@ views 'Deployment' {
     
     include
       prod.appTier,
-      prod.appTier.monolith_primary,
-      prod.appTier.monolith_secondary,
-      prod.dmz.lb,
-      prod.dataTier.db_vm,
-      prod.dataTier.nfs_vm,
+      prod.appTier.** where kind is vm,
+      prod.dmz,
+      prod.dmz.** where kind is vm,
+      prod.dataTier.prod-database-vm,
+      prod.dataTier.prod-nfs-vm,
       -> prod.appTier.*,
       prod.appTier.* ->
   }
@@ -40,29 +33,40 @@ views 'Deployment' {
     
     include
       prod.dataTier,
-      prod.dataTier.db_vm,
-      prod.dataTier.nfs_vm,
-      prod.appTier.monolith_primary,
-      prod.appTier.monolith_secondary,
+      prod.dataTier.** where kind is vm,
+      prod.appTier.prod-monolith-vm01,
+      prod.appTier.prod-monolith-vm02,
       -> prod.dataTier.*,
       prod.dataTier.* ->
   }
 
   deployment view security {
     title 'Security & Monitoring'
-    description 'Firewall, monitoring, backup, and disaster recovery infrastructure'
+    description 'Monitoring infrastructure with all monitored systems'
     
     include
       prod.secZone,
-      prod.secZone.firewall,
-      prod.secZone.monitoring,
-      prod.secZone.backup,
-      prod.dmz.lb,
-      prod.appTier.monolith_primary,
-      prod.appTier.monolith_secondary,
-      prod.dataTier.db_vm,
-      prod.dataTier.nfs_vm,
+      prod.secZone.** where kind is vm,
+      prod.dmz,
+      prod.dmz.** where kind is vm,
+      prod.appTier,
+      prod.appTier.** where kind is vm,
+      prod.dataTier,
+      prod.dataTier.** where kind is vm,
       -> prod.secZone.*,
       prod.secZone.* ->
+  }
+
+  deployment view backup_recovery {
+    title 'Backup & Disaster Recovery'
+    description 'Backup infrastructure with all protected data systems'
+    
+    include
+      prod.infraZone,
+      prod.infraZone.** where kind is vm,
+      prod.dataTier,
+      prod.dataTier.** where kind is vm,
+      -> prod.infraZone.*,
+      prod.infraZone.* ->
   }
 }

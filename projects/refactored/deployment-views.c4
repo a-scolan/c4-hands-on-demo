@@ -9,19 +9,7 @@ views 'Deployment' {
     
     include 
       prod,
-      prod.dmz,
-      prod.dmz.api_gateway,
-      prod.appTier,
-      prod.appTier.frontend_vm,
-      prod.appTier.upload_vm,
-      prod.appTier.document_vm,
-      prod.appTier.download_vm,
-      prod.procTier,
-      prod.procTier.worker_vm,
-      prod.procTier.queue_vm,
-      prod.dataTier,
-      prod.dataTier.db_vm,
-      prod.dataTier.storage_vm
+      prod.** where kind is vm
   }
 
   deployment view app_tier {
@@ -30,14 +18,12 @@ views 'Deployment' {
     
     include
       prod.appTier,
-      prod.appTier.frontend_vm,
-      prod.appTier.upload_vm,
-      prod.appTier.document_vm,
-      prod.appTier.download_vm,
-      prod.dmz.api_gateway,
-      prod.procTier.queue_vm,
-      prod.dataTier.db_vm,
-      prod.dataTier.storage_vm,
+      prod.appTier.** where kind is vm,
+      prod.dmz,
+      prod.dmz.** where kind is vm,
+      prod.procTier.prod-queue-vm,
+      prod.dataTier.prod-database-vm,
+      prod.dataTier.prod-storage-vm,
       -> prod.appTier.*,
       prod.appTier.* ->
   }
@@ -48,11 +34,10 @@ views 'Deployment' {
     
     include
       prod.procTier,
-      prod.procTier.worker_vm,
-      prod.procTier.queue_vm,
-      prod.appTier.upload_vm,
-      prod.dataTier.db_vm,
-      prod.dataTier.storage_vm,
+      prod.procTier.** where kind is vm,
+      prod.appTier.prod-upload-vm,
+      prod.dataTier.prod-database-vm,
+      prod.dataTier.prod-storage-vm,
       -> prod.procTier.*,
       prod.procTier.* ->
   }
@@ -63,33 +48,43 @@ views 'Deployment' {
     
     include
       prod.dataTier,
-      prod.dataTier.db_vm,
-      prod.dataTier.storage_vm,
-      prod.appTier.document_vm,
-      prod.appTier.download_vm,
-      prod.procTier.worker_vm,
+      prod.dataTier.** where kind is vm,
+      prod.appTier.prod-document-vm,
+      prod.appTier.prod-download-vm,
+      prod.procTier.prod-worker-vm,
       -> prod.dataTier.*,
       prod.dataTier.* ->
   }
 
   deployment view security {
     title 'Security & Monitoring'
-    description 'Firewall, monitoring stack, and security infrastructure'
+    description 'Monitoring infrastructure with all monitored systems'
     
     include
       prod.secZone,
-      prod.secZone.firewall,
-      prod.secZone.monitoring,
-      prod.dmz.api_gateway,
-      prod.appTier.frontend_vm,
-      prod.appTier.upload_vm,
-      prod.appTier.document_vm,
-      prod.appTier.download_vm,
-      prod.procTier.worker_vm,
-      prod.procTier.queue_vm,
-      prod.dataTier.db_vm,
-      prod.dataTier.storage_vm,
+      prod.secZone.** where kind is vm,
+      prod.dmz,
+      prod.dmz.** where kind is vm,
+      prod.appTier,
+      prod.appTier.** where kind is vm,
+      prod.procTier,
+      prod.procTier.** where kind is vm,
+      prod.dataTier,
+      prod.dataTier.** where kind is vm,
       -> prod.secZone.*,
       prod.secZone.* ->
+  }
+
+  deployment view backup_recovery {
+    title 'Backup & Disaster Recovery'
+    description 'Backup infrastructure with all protected data systems'
+    
+    include
+      prod.infraZone,
+      prod.infraZone.** where kind is vm,
+      prod.dataTier,
+      prod.dataTier.** where kind is vm,
+      -> prod.infraZone.*,
+      prod.infraZone.* ->
   }
 }
