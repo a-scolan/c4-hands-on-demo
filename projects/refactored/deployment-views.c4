@@ -1,0 +1,46 @@
+// --- DEPLOYMENT VIEWS ---
+// Infrastructure and networking diagrams for refactored microservices
+
+views {
+  deployment view d1_network_overview {
+    title "D1 / Network Overview"
+    description "Physical datacenter deployment with network zones and VLANs"
+    
+    include prod.**
+  }
+
+  deployment view d2_application_tier {
+    title "D2 / Application Tier"
+    description "Microservices deployed across VM instances"
+    
+    include prod.appTier.**
+  }
+
+  deployment view d3_processing_tier {
+    title "D3 / Processing Tier"
+    description "Async job processing with RabbitMQ and worker nodes"
+    
+    include prod.procTier.**
+  }
+
+  deployment view d4_data_tier {
+    title "D4 / Data Tier"
+    description "Database and object storage infrastructure"
+    
+    include prod.dataTier.**
+  }
+
+  deployment view d5_security {
+    title "D5 / Security & Monitoring"
+    description "Firewall, monitoring stack, and security infrastructure"
+    
+    include prod.secZone.**
+  }
+
+  deployment view d_complete {
+    title "D / Complete Datacenter Deployment"
+    description "Full production datacenter infrastructure for refactored system"
+    
+    include prod.**
+  }
+}

@@ -3,6 +3,6 @@
   "name": "legacy-vault-system",
   "title": "Legacy Vault System - Monolithic Architecture",
   "include": {
-    "paths": ["../shared"]
+    "paths": ["../shared", "."]
   }
 }

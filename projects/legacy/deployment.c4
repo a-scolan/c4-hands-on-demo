@@ -1,0 +1,150 @@
+// --- LEGACY DEPLOYMENT MODEL ---
+// Self-hosted datacenter deployment for monolithic architecture with VMs and networking
+
+deployment {
+  environment prod 'Production Datacenter - EU' {
+    #production
+    
+    // Network Infrastructure
+    zone dmz 'Network DMZ' {
+      #networking
+      description "Perimeter security zone"
+      
+      // Load Balancer for frontend
+      lb = vm 'Load Balancer' {
+        technology "HAProxy"
+        description "SSL termination, traffic distribution"
+        metadata {
+          os "CentOS 8"
+          cpu "4 vCPU"
+          ram "8 GB"
+          network "10.0.0.10/24"
+        }
+      }
+    }
+
+    // Application Zone
+    appTier = zone 'Application Tier' {
+      #infrastructure
+      description "Monolithic application deployment zone"
+      
+      // Monolith VM (Primary)
+      monolith_primary = vm 'Monolith Primary' {
+        technology "Java 17 / Spring Boot"
+        description "Primary monolithic application instance"
+        metadata {
+          os "CentOS 8"
+          cpu "8 vCPU"
+          ram "16 GB"
+          network "10.1.0.11/24"
+          port "8080"
+          jvm_heap "12 GB"
+        }
+        instanceOf vault.monolith
+      }
+
+      // Monolith VM (Secondary - for HA)
+      monolith_secondary = vm 'Monolith Secondary' {
+        technology "Java 17 / Spring Boot"
+        description "Secondary monolithic application instance (failover)"
+        metadata {
+          os "CentOS 8"
+          cpu "8 vCPU"
+          ram "16 GB"
+          network "10.1.0.12/24"
+          port "8080"
+          jvm_heap "12 GB"
+          mode "hot-standby"
+        }
+        instanceOf vault.monolith
+      }
+    }
+
+    // Data Tier
+    dataTier = zone 'Data Tier' {
+      #infrastructure
+      description "Database and file storage zone"
+      
+      // PostgreSQL Database
+      db_vm = vm 'Relational Database' {
+        technology "PostgreSQL 14"
+        description "Vault metadata and document records"
+        metadata {
+          os "CentOS 8"
+          cpu "16 vCPU"
+          ram "64 GB"
+          network "10.3.0.17/24"
+          port "5432"
+          disk "2 TB SSD"
+          replication "primary + 1 standby"
+          encryption "at-rest enabled"
+          backup "daily incremental"
+        }
+        instanceOf vault.db
+      }
+
+      // NFS Storage
+      nfs_vm = vm 'Network Storage (NFS)' {
+        technology "NFS / GlusterFS"
+        description "Encrypted file storage on shared NFS mount"
+        metadata {
+          os "CentOS 8"
+          cpu "8 vCPU"
+          ram "32 GB"
+          network "10.3.0.18/24"
+          disk "500 TB HDD"
+          mount_point "/mnt/data"
+          replication "3-way mirroring"
+          encryption "at-rest enabled"
+          snapshots "hourly"
+        }
+        instanceOf vault.disk
+      }
+    }
+
+    // Security Zone
+    secZone = zone 'Security & Monitoring' {
+      #security
+      description "Firewall, monitoring, and backup"
+      
+      // Firewall
+      firewall = vm 'Firewall / WAF' {
+        technology "pfSense / ModSecurity"
+        description "Stateful firewall and DDoS protection"
+        metadata {
+          os "FreeBSD"
+          cpu "8 vCPU"
+          ram "16 GB"
+          network "10.0.0.1/24"
+        }
+      }
+
+      // Monitoring VM
+      monitoring = vm 'Monitoring Stack' {
+        technology "Prometheus + Grafana + Splunk"
+        description "Metrics, logs, and alerting"
+        metadata {
+          os "CentOS 8"
+          cpu "4 vCPU"
+          ram "16 GB"
+          network "10.4.0.19/24"
+          disk "2 TB SSD"
+        }
+      }
+
+      // Backup VM
+      backup = vm 'Backup Storage' {
+        technology "Bacula / Veeam"
+        description "Offsite backup and disaster recovery"
+        metadata {
+          os "CentOS 8"
+          cpu "4 vCPU"
+          ram "8 GB"
+          network "10.4.0.20/24"
+          disk "10 TB HDD"
+          retention "30 days"
+        }
+      }
+    }
+  }
+}

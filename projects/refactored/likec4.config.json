@@ -3,6 +3,6 @@
   "name": "refactored-vault-system",
   "title": "Refactored Vault System - Architecture Microservices",
   "include": {
-    "paths": ["../shared"]
+    "paths": ["../shared", "."]
   }
 }

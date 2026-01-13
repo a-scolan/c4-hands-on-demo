@@ -1,0 +1,193 @@
+// --- REFACTORED DEPLOYMENT MODEL ---
+// Self-hosted datacenter deployment with VMs and networking
+
+deployment {
+  environment prod 'Production Datacenter - EU' {
+    #production
+    
+    // Network Infrastructure
+    zone dmz 'Network DMZ' {
+      #networking
+      description "Perimeter security zone"
+      
+      // Load Balancer for frontend
+      lb = vm 'Load Balancer' {
+        technology "HAProxy / NGINX"
+        description "SSL termination, traffic distribution"
+        metadata {
+          os "Ubuntu 22.04 LTS"
+          cpu "4 vCPU"
+          ram "8 GB"
+          network "10.0.0.10/24"
+        }
+      }
+    }
+
+    // Application Zone
+    appTier = zone 'Application Tier' {
+      #infrastructure
+      description "Microservices deployment zone"
+      
+      // Frontend VM
+      frontend_vm = vm 'Frontend Server' {
+        technology "Node.js"
+        description "React SPA and API Gateway proxy"
+        metadata {
+          os "Ubuntu 22.04 LTS"
+          cpu "4 vCPU"
+          ram "8 GB"
+          network "10.1.0.11/24"
+          port "3000"
+        }
+        instanceOf vault.frontend
+      }
+
+      // Upload Service VM
+      upload_vm = vm 'Upload Service' {
+        technology "Node.js + Docker"
+        description "File upload handler service"
+        metadata {
+          os "Ubuntu 22.04 LTS"
+          cpu "2 vCPU"
+          ram "4 GB"
+          network "10.1.0.12/24"
+          port "3001"
+        }
+        instanceOf vault.uploadService
+      }
+
+      // Document Service VM
+      document_vm = vm 'Document Service' {
+        technology "Node.js + Docker"
+        description "Document metadata management"
+        metadata {
+          os "Ubuntu 22.04 LTS"
+          cpu "2 vCPU"
+          ram "4 GB"
+          network "10.1.0.13/24"
+          port "3002"
+        }
+        instanceOf vault.documentService
+      }
+
+      // Download Service VM
+      download_vm = vm 'Download Service' {
+        technology "GoLang + Docker"
+        description "File retrieval and decryption"
+        metadata {
+          os "Ubuntu 22.04 LTS"
+          cpu "4 vCPU"
+          ram "8 GB"
+          network "10.1.0.14/24"
+          port "3003"
+        }
+        instanceOf vault.downloadService
+      }
+    }
+
+    // Processing Zone
+    procTier = zone 'Processing Tier' {
+      #infrastructure
+      description "Async job processing zone"
+      
+      // Worker VM
+      worker_vm = vm 'Processing Worker' {
+        technology "GoLang + Docker"
+        description "Async job consumer and processor"
+        metadata {
+          os "Ubuntu 22.04 LTS"
+          cpu "8 vCPU"
+          ram "16 GB"
+          network "10.2.0.15/24"
+          workers "4"
+        }
+        instanceOf vault.worker
+      }
+
+      // Queue Broker VM
+      queue_vm = vm 'Message Queue' {
+        technology "RabbitMQ"
+        description "Async job queue broker"
+        metadata {
+          os "Ubuntu 22.04 LTS"
+          cpu "4 vCPU"
+          ram "8 GB"
+          network "10.2.0.16/24"
+          port "5672"
+          clustering "enabled"
+        }
+        instanceOf vault.jobs
+      }
+    }
+
+    // Data Tier
+    dataTier = zone 'Data Tier' {
+      #infrastructure
+      description "Database and storage zone"
+      
+      // MongoDB Cluster
+      db_vm = vm 'Document Database' {
+        technology "MongoDB 6.0"
+        description "Encrypted document metadata storage"
+        metadata {
+          os "Ubuntu 22.04 LTS"
+          cpu "8 vCPU"
+          ram "32 GB"
+          network "10.3.0.17/24"
+          port "27017"
+          disk "1 TB SSD"
+          replication "3-node replica set"
+          encryption "at-rest enabled"
+        }
+        instanceOf vault.docDB
+      }
+
+      // S3-compatible Storage
+      storage_vm = vm 'Object Storage' {
+        technology "MinIO / AWS S3"
+        description "Encrypted file storage (cold)"
+        metadata {
+          os "Ubuntu 22.04 LTS"
+          cpu "16 vCPU"
+          ram "64 GB"
+          network "10.3.0.18/24"
+          disk "100 TB HDD"
+          replication "3-node distributed"
+          encryption "at-rest enabled"
+        }
+        instanceOf s3
+      }
+    }
+
+    // Security Zone
+    secZone = zone 'Security & Monitoring' {
+      #security
+      description "Firewall, monitoring, and backup"
+      
+      // Firewall
+      firewall = vm 'Firewall / WAF' {
+        technology "pfSense / ModSecurity"
+        description "Stateful firewall and DDoS protection"
+        metadata {
+          os "FreeBSD"
+          cpu "8 vCPU"
+          ram "16 GB"
+          network "10.0.0.1/24"
+        }
+      }
+
+      // Monitoring VM
+      monitoring = vm 'Monitoring Stack' {
+        technology "Prometheus + Grafana + ELK"
+        description "Metrics, logs, and alerting"
+        metadata {
+          os "Ubuntu 22.04 LTS"
+          cpu "4 vCPU"
+          ram "16 GB"
+          network "10.4.0.19/24"
+          disk "2 TB SSD"
+        }
+      }
+    }
+  }
+}

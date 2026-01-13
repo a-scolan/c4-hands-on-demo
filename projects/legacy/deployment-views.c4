@@ -1,0 +1,39 @@
+// --- DEPLOYMENT VIEWS ---
+// Infrastructure and networking diagrams for legacy monolithic architecture
+
+views {
+  deployment view d1_network_overview {
+    title "D1 / Network Overview"
+    description "Physical datacenter deployment with network zones and VLANs"
+    
+    include prod.**
+  }
+
+  deployment view d2_application_tier {
+    title "D2 / Application Tier"
+    description "Monolithic application instances with load balancing and failover"
+    
+    include prod.appTier.**
+  }
+
+  deployment view d3_data_tier {
+    title "D3 / Data Tier"
+    description "PostgreSQL database cluster and NFS storage infrastructure"
+    
+    include prod.dataTier.**
+  }
+
+  deployment view d4_security {
+    title "D4 / Security & Monitoring"
+    description "Firewall, monitoring, backup, and disaster recovery infrastructure"
+    
+    include prod.secZone.**
+  }
+
+  deployment view d_complete {
+    title "D / Complete Datacenter Deployment"
+    description "Full production datacenter infrastructure for legacy monolithic system"
+    
+    include prod.**
+  }
+}

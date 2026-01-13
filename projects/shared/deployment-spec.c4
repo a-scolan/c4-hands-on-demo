@@ -1,0 +1,85 @@
+// --- DEPLOYMENT SPECIFICATIONS ---
+// Infrastructure, VM, networking, and deployment node definitions
+// Complements spec.c4 with deployment-only elements
+
+specification {
+  // Define custom colors using rgb format for better compatibility
+  color lb-blue rgb(59, 130, 246)
+  color fw-red rgb(220, 38, 38)
+  color net-green rgb(16, 185, 129)
+  color prod-green rgb(5, 150, 105)
+  color infra-blue rgb(2, 132, 199)
+  color net-blue rgb(37, 99, 235)
+  color deploy-purple rgb(124, 58, 237)
+
+  // Deployment node kinds (unique to deployment model)
+  deploymentNode environment
+
+  deploymentNode datacenter
+
+  deploymentNode zone
+
+  deploymentNode vlan
+
+  deploymentNode vm {
+    notation 'Virtual Machine'
+  }
+
+  deploymentNode container
+
+  // Infrastructure-specific elements (complementary to spec.c4)
+  element loadbalancer {
+    notation "Load Balancer"
+    style {
+      color lb-blue
+    }
+  }
+
+  element firewall {
+    notation "Firewall"
+    style {
+      color fw-red
+    }
+  }
+
+  element networkdevice {
+    notation "Network Device"
+    style {
+      color net-green
+    }
+  }
+
+  // Deployment-specific relationship types
+  relationship deploys {
+    line solid
+  }
+
+  relationship routes {
+    line solid
+  }
+
+  relationship protects {
+    line solid
+  }
+
+  relationship connects {
+    line solid
+  }
+
+  // Deployment-specific tags
+  tag production {
+    color rgb(5, 150, 105)
+  }
+
+  tag infrastructure {
+    color rgb(2, 132, 199)
+  }
+
+  tag networking {
+    color rgb(37, 99, 235)
+  }
+
+  tag deployment {
+    color rgb(124, 58, 237)
+  }
+}
