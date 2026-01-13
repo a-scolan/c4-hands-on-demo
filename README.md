@@ -48,7 +48,88 @@ Compare the evolution from monolith to microservices:
 
 💡 **Tip:** Compare legacy vs. refactored: C1 Context → C2 Container → Seq Upload Flow to see the evolution
 
-## 🚀 How to Use
+## � Installation & Setup
+
+### Prerequisites
+
+- **Node.js** (v18 or later)
+- **VS Code** (recommended for best LikeC4 experience)
+- **Git** (for cloning the repository)
+
+### Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/c4_hands-on-demo.git
+cd c4_hands-on-demo
+
+# Install LikeC4 (if not already installed globally)
+npm install -g likec4
+
+# Start the development server
+npx likec4 start
+```
+
+### Recommended VS Code Extensions
+
+#### 1. **LikeC4 Extension** (Required)
+The official LikeC4 VS Code extension provides syntax highlighting, IntelliSense, and live preview.
+
+**Installation:**
+- Open VS Code Extensions (Ctrl+Shift+X / Cmd+Shift+X)
+- Search for "LikeC4"
+- Install the extension by LikeC4
+
+**Features:**
+- Syntax highlighting for `.c4` files
+- IntelliSense for element kinds, relationship types, and icons
+- Live diagram preview
+- Error detection and validation
+
+📚 **Documentation:** [LikeC4 VS Code Extension](https://marketplace.visualstudio.com/items?itemName=likec4.likec4-vscode)
+
+### Useful MCP Servers
+
+For enhanced AI assistant workflows, these Model Context Protocol (MCP) servers provide powerful integrations:
+
+#### **Context7** - Documentation Search
+Access up-to-date documentation for LikeC4 and other libraries.
+
+📚 **Documentation:** [Context7 MCP Server](https://context7.com/docs/resources/all-clients)  
+🔗 **Website:** [context7.com](https://context7.com/)
+
+#### **LikeC4 MCP Server** - Architecture Analysis
+Query and navigate LikeC4 models programmatically.
+
+📚 **Documentation:** [LikeC4 MCP](https://likec4.dev/tooling/mcp/)  
+🔧 **GitHub:** [likec4/likec4](https://github.com/likec4/likec4)
+
+#### **GitHub MCP Server** - Repository Management
+Manage issues, pull requests, and repository operations.
+
+📚 **Documentation:** [MCP GitHub Server](https://github.com/github/github-mcp-server)
+
+#### **Language Server Protocol (LSP)**
+VS Code's built-in LSP provides IntelliSense for LikeC4 files (307+ AWS icons, 2000+ Bootstrap icons).
+
+📚 **Documentation:** [VS Code LSP Guide](https://marketplace.visualstudio.com/items?itemName=sehejjain.lsp-mcp-bridge)
+
+### Verification
+
+After setup, verify everything works:
+
+```bash
+# 1. Check LikeC4 installation
+npx likec4 --version
+
+# 2. Start development server
+npx likec4 start
+
+# 3. Open browser to http://localhost:3000
+# You should see both legacy and refactored projects
+```
+
+## �🚀 How to Use
 
 This workspace is configured as a **multi-project setup** where both legacy and refactored architectures coexist independently.
 
