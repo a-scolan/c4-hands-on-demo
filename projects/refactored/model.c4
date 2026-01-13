@@ -18,7 +18,7 @@ model {
     api = Container 'API Gateway' {
       technology 'Kong / API Gateway'
       description 'Routes requests and validates auth'
-      icon tech:kong
+      icon tech:kong-icon
 
       router = Component 'Router' {
         technology 'Express Router'
@@ -35,7 +35,7 @@ model {
     uploadService = Container_ApplicationServer 'Upload Service' {
       technology 'Node.js / Express'
       description 'Handles file uploads and validation'
-      icon tech:nodejs
+      icon tech:nodejs-icon
 
       uploadHandler = Component 'Upload Handler' {
         technology 'Multer / Express'
@@ -123,7 +123,7 @@ model {
     // 7. Persistence
     docDB = Container_Database 'Document DB' {
       technology 'MongoDB'
-      icon tech:mongodb
+      icon tech:mongodb-icon
     }
   }
 
