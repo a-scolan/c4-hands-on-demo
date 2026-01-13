@@ -2,11 +2,11 @@
 // Self-hosted datacenter deployment for monolithic architecture with VMs and networking
 
 deployment {
-  environment Prod 'Production Datacenter - EU' {
+  Node_Environment Prod 'Production Datacenter - EU' {
     #Production
     
     // Network Infrastructure
-  zone Dmz 'Network DMZ (VLAN 100: 10.0.0.0/24)' {
+  Zone Dmz 'Network DMZ (VLAN 100: 10.0.0.0/24)' {
       #Networking
       description """
         Perimeter security zone with edge services
@@ -19,7 +19,7 @@ deployment {
       """
       
       // Load Balancer for frontend
-      ProdLbVm = vm 'ProdLbVm' {
+      ProdLbVm = Node_Vm 'ProdLbVm' {
         technology "HAProxy"
           description """
             SSL termination, traffic distribution
@@ -35,7 +35,7 @@ deployment {
     }
 
   // Application Zone
-  AppTier = zone 'Application Tier (VLAN 101: 10.1.0.0/24)' {
+  AppTier = Zone 'Application Tier (VLAN 101: 10.1.0.0/24)' {
       #Infrastructure
       description """
         Monolithic application deployment zone
@@ -48,7 +48,7 @@ deployment {
       """
       
       // Monolith VM (Primary)
-      ProdMonolithVm01 = vm 'ProdMonolithVm01' {
+      ProdMonolithVm01 = Node_Vm 'ProdMonolithVm01' {
         #Deployment
         technology "Java 17 / Spring Boot"
           description """
@@ -64,13 +64,13 @@ deployment {
             | JVM Heap | 12 GB |
           """
         
-        monolithApp = app 'Monolith App (Primary)' {
+        monolithApp = Node_App 'Monolith App (Primary)' {
           instanceOf vault.monolith
         }
       }
 
       // Monolith VM (Secondary - hot standby)
-      ProdMonolithVm02 = vm 'ProdMonolithVm02' {
+      ProdMonolithVm02 = Node_Vm 'ProdMonolithVm02' {
         #Deployment
         technology "Java 17 / Spring Boot"
           description """
@@ -87,14 +87,14 @@ deployment {
             | Mode | hot-standby |
           """
         
-        monolithApp = app 'Monolith App (Secondary)' {
+        monolithApp = Node_App 'Monolith App (Secondary)' {
           instanceOf vault.monolith
         }
       }
     }
 
   // Data Tier
-  DataTier = zone 'Data Tier (VLAN 102: 10.2.0.0/24)' {
+  DataTier = Zone 'Data Tier (VLAN 102: 10.2.0.0/24)' {
       #Infrastructure
       description """
         Database and file storage zone
@@ -107,7 +107,7 @@ deployment {
       """
       
       // PostgreSQL Database
-      ProdDatabaseVm = vm 'ProdDatabaseVm' {
+      ProdDatabaseVm = Node_Vm 'ProdDatabaseVm' {
         #Deployment
         technology "PostgreSQL 14"
           description """
@@ -126,13 +126,13 @@ deployment {
             | Backup | daily incremental |
           """
         
-        dbApp = app 'PostgreSQL Instance' {
+        dbApp = Node_App 'PostgreSQL Instance' {
           instanceOf vault.db
         }
       }
 
       // NFS Storage
-      ProdNfsVm = vm 'ProdNfsVm' {
+      ProdNfsVm = Node_Vm 'ProdNfsVm' {
         #Deployment
         technology "NFS / GlusterFS"
           description """
@@ -151,7 +151,7 @@ deployment {
             | Snapshots | hourly |
           """
         
-        nfsApp = app 'NFS Service' {
+        nfsApp = Node_App 'NFS Service' {
           instanceOf vault.disk
         }
       }
@@ -159,7 +159,7 @@ deployment {
 
   // Security Zone - Intermediate security appliances
   // Security Zone - Monitoring and observability
-  SecZone = zone 'Security & Monitoring (VLAN 103: 10.3.0.0/24)' {
+  SecZone = Zone 'Security & Monitoring (VLAN 103: 10.3.0.0/24)' {
       #Security
       description """
         Monitoring, logging, and observability infrastructure
@@ -172,7 +172,7 @@ deployment {
       """
       
       // Monitoring VM
-      Monitoring = vm 'Monitoring' {
+      Monitoring = Node_Vm 'Monitoring' {
         #SharedInfra
         technology "Prometheus + Grafana + Splunk"
           description """
@@ -190,7 +190,7 @@ deployment {
     }
 
   // Infrastructure Zone - Backup and disaster recovery
-  InfraZone = zone 'Backup & Disaster Recovery (VLAN 105: 10.5.0.0/24)' {
+  InfraZone = Zone 'Backup & Disaster Recovery (VLAN 105: 10.5.0.0/24)' {
       #Infrastructure
       description """
         Backup, replication, and disaster recovery infrastructure
@@ -203,7 +203,7 @@ deployment {
       """
       
       // Backup VM
-      Backup = vm 'Backup' {
+      Backup = Node_Vm 'Backup' {
         technology "Bacula / Veeam"
           description """
             Offsite backup and disaster recovery
@@ -286,14 +286,14 @@ deployment {
   }
 
   // CI/CD Infrastructure
-  environment Cicd 'CI/CD Pipeline Infrastructure' {
+  Node_Environment Cicd 'CI/CD Pipeline Infrastructure' {
     #Cicd
     description """
       Continuous Integration and Continuous Deployment infrastructure
       for automated testing and deployment of the monolithic application
     """
 
-    CicdZone = zone 'CI/CD Tools Zone (VLAN 200: 10.200.0.0/24)' {
+    CicdZone = Zone 'CI/CD Tools Zone (VLAN 200: 10.200.0.0/24)' {
       #Pipeline
       description """
         Development and deployment automation tools
@@ -306,7 +306,7 @@ deployment {
       """
 
       // Git Repository
-      GitServerVm = vm 'GitServerVm' {
+      GitServerVm = Node_Vm 'GitServerVm' {
         #SharedInfra
         technology "GitLab / GitHub Enterprise"
         description """
@@ -323,7 +323,7 @@ deployment {
       }
 
       // CI/CD Pipeline Server
-      CicdPipelineVm = vm 'CicdPipelineVm' {
+      CicdPipelineVm = Node_Vm 'CicdPipelineVm' {
         #SharedInfra
         technology "GitLab CI / Jenkins"
         description """
@@ -341,7 +341,7 @@ deployment {
       }
 
       // Docker Registry
-      RegistryVm = vm 'RegistryVm' {
+      RegistryVm = Node_Vm 'RegistryVm' {
         #SharedInfra
         technology "Docker Registry / Harbor"
         description """
@@ -359,7 +359,7 @@ deployment {
       }
 
       // Artifact Repository
-      ArtifactRepoVm = vm 'ArtifactRepoVm' {
+      ArtifactRepoVm = Node_Vm 'ArtifactRepoVm' {
         #SharedInfra
         technology "Nexus / Artifactory"
         description """

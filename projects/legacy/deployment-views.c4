@@ -9,7 +9,7 @@ views 'Deployment' {
     
     include
       Prod,
-      Prod.** where kind is vm
+      Prod.** where tag is #Vm
   }
 
   deployment view app_tier {
@@ -18,9 +18,9 @@ views 'Deployment' {
     
     include
       Prod.AppTier,
-      Prod.AppTier.** where kind is vm,
+      Prod.AppTier.** where tag is #Vm,
       Prod.Dmz,
-      Prod.Dmz.** where kind is vm,
+      Prod.Dmz.** where tag is #Vm,
       Prod.DataTier.ProdDatabaseVm,
       Prod.DataTier.ProdNfsVm,
       -> Prod.AppTier.*,
@@ -33,7 +33,7 @@ views 'Deployment' {
     
     include
       Prod.DataTier,
-      Prod.DataTier.** where kind is vm,
+      Prod.DataTier.** where tag is #Vm,
       Prod.AppTier.ProdMonolithVm01,
       Prod.AppTier.ProdMonolithVm02,
       -> Prod.DataTier.*,
@@ -46,13 +46,13 @@ views 'Deployment' {
     
     include
       Prod.SecZone,
-      Prod.SecZone.** where kind is vm,
+      Prod.SecZone.** where tag is #Vm,
       Prod.Dmz,
-      Prod.Dmz.** where kind is vm,
+      Prod.Dmz.** where tag is #Vm,
       Prod.AppTier,
-      Prod.AppTier.** where kind is vm,
+      Prod.AppTier.** where tag is #Vm,
       Prod.DataTier,
-      Prod.DataTier.** where kind is vm,
+      Prod.DataTier.** where tag is #Vm,
       -> Prod.SecZone.*,
       Prod.SecZone.* ->
   }
@@ -63,9 +63,9 @@ views 'Deployment' {
     
     include
       Prod.InfraZone,
-      Prod.InfraZone.** where kind is vm,
+      Prod.InfraZone.** where tag is #Vm,
       Prod.DataTier,
-      Prod.DataTier.** where kind is vm,
+      Prod.DataTier.** where tag is #Vm,
       -> Prod.InfraZone.*,
       Prod.InfraZone.* ->
   }
@@ -76,7 +76,7 @@ views 'Deployment' {
     
     include
       Cicd,
-      Cicd.** where kind is vm,
+      Cicd.** where tag is #Vm,
       Prod.** where tag is #Deployment,
       -> Cicd.**,
       Cicd.** ->

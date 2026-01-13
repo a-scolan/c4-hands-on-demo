@@ -2,11 +2,11 @@
 // Self-hosted datacenter deployment with VMs and networking
 
 deployment {
-  environment Prod 'Production Datacenter - EU' {
+  Node_Environment Prod 'Production Datacenter - EU' {
     #Production
     
     // Network Infrastructure
-  zone Dmz 'Network DMZ (VLAN 100: 10.0.0.0/24)' {
+  Zone Dmz 'Network DMZ (VLAN 100: 10.0.0.0/24)' {
       #Networking
       description """
         Perimeter security zone with edge services
@@ -19,7 +19,7 @@ deployment {
       """
       
     // API Gateway exposed at the edge (replaces LB)
-    ProdApigwVm = vm 'prod-apigw-vm' {
+    ProdApigwVm = Node_Vm 'prod-apigw-vm' {
         #SharedInfra
         technology "Kong / API Gateway"
           description """
@@ -34,14 +34,14 @@ deployment {
             | Port | 443 |
           """
         
-        apiApp = app 'API Gateway App' {
+        apiApp = Node_App 'API Gateway App' {
           instanceOf vault.api
         }
       }
     }
 
   // Application Zone
-  AppTier = zone 'Application Tier (VLAN 101: 10.1.0.0/24)' {
+  AppTier = Zone 'Application Tier (VLAN 101: 10.1.0.0/24)' {
       #Infrastructure
       description """
         Microservices deployment zone
@@ -54,7 +54,7 @@ deployment {
       """
       
       // Frontend VM
-      ProdFrontendVm = vm 'prod-frontend-vm' {
+      ProdFrontendVm = Node_Vm 'prod-frontend-vm' {
         #Deployment
         technology "Node.js"
         description """
@@ -69,13 +69,13 @@ deployment {
           | Port | 3000 |
         """
         
-        frontendApp = app 'Frontend App' {
+        frontendApp = Node_App 'Frontend App' {
           instanceOf vault.frontend
         }
       }
 
       // Upload Service VM
-      ProdUploadVm = vm 'prod-upload-vm' {
+      ProdUploadVm = Node_Vm 'prod-upload-vm' {
         #Deployment
         technology "Node.js + Docker"
         description """
@@ -90,13 +90,13 @@ deployment {
           | Port | 3001 |
         """
         
-        uploadApp = app 'Upload Service App' {
+        uploadApp = Node_App 'Upload Service App' {
           instanceOf vault.uploadService
         }
       }
 
       // Retrieval Service VM (merged Document + Download)
-      ProdRetrievalVm = vm 'prod-retrieval-vm' {
+      ProdRetrievalVm = Node_Vm 'prod-retrieval-vm' {
         #Deployment
         technology "GoLang + Docker + Redis"
         description """
@@ -112,14 +112,14 @@ deployment {
           | Cache | Redis (local) |
         """
         
-        retrievalApp = app 'Retrieval Service App' {
+        retrievalApp = Node_App 'Retrieval Service App' {
           instanceOf vault.retrievalService
         }
       }
     }
 
   // Processing Zone
-  ProcTier = zone 'Processing Tier (VLAN 102: 10.2.0.0/24)' {
+  ProcTier = Zone 'Processing Tier (VLAN 102: 10.2.0.0/24)' {
       #Infrastructure
       description """
         Async job processing zone
@@ -132,7 +132,7 @@ deployment {
       """
       
       // Worker VM
-      ProdWorkerVm = vm 'prod-worker-vm' {
+      ProdWorkerVm = Node_Vm 'prod-worker-vm' {
         #Deployment
         technology "GoLang + Docker"
         description """
@@ -147,13 +147,13 @@ deployment {
           | Workers | 4 |
         """
         
-        workerApp = app 'Worker App' {
+        workerApp = Node_App 'Worker App' {
           instanceOf vault.worker
         }
       }
 
       // Queue Broker VM
-      ProdQueueVm = vm 'prod-queue-vm' {
+      ProdQueueVm = Node_Vm 'prod-queue-vm' {
         #Deployment
         technology "RabbitMQ"
         description """
@@ -169,14 +169,14 @@ deployment {
           | Clustering | enabled |
         """
         
-        queueApp = app 'RabbitMQ App' {
+        queueApp = Node_App 'RabbitMQ App' {
           instanceOf vault.jobs
         }
       }
     }
 
   // Data Tier
-  DataTier = zone 'Data Tier (VLAN 103: 10.3.0.0/24)' {
+  DataTier = Zone 'Data Tier (VLAN 103: 10.3.0.0/24)' {
       #Infrastructure
       description """
         Database and storage zone
@@ -189,7 +189,7 @@ deployment {
       """
       
       // MongoDB Cluster
-      ProdDatabaseVm = vm 'prod-database-vm' {
+      ProdDatabaseVm = Node_Vm 'prod-database-vm' {
         #Deployment
         technology "MongoDB 6.0"
         description """
@@ -207,13 +207,13 @@ deployment {
           | Encryption | at-rest enabled |
         """
         
-        dbApp = app 'MongoDB Instance' {
+        dbApp = Node_App 'MongoDB Instance' {
           instanceOf vault.docDB
         }
       }
 
       // MinIO Object Storage (Primary)
-      ProdStorageVm = vm 'prod-storage-vm' {
+      ProdStorageVm = Node_Vm 'prod-storage-vm' {
         #Deployment
         technology "MinIO"
         description """
@@ -230,14 +230,14 @@ deployment {
           | Encryption | at-rest enabled |
         """
         
-        storageApp = app 'MinIO Instance' {
+        storageApp = Node_App 'MinIO Instance' {
           instanceOf minio
         }
       }
     }
 
   // Security Zone - Monitoring and observability
-  SecZone = zone 'Security & Monitoring (VLAN 104: 10.4.0.0/24)' {
+  SecZone = Zone 'Security & Monitoring (VLAN 104: 10.4.0.0/24)' {
       #Security
       description """
         Monitoring, logging, and observability infrastructure
@@ -251,7 +251,7 @@ deployment {
       """
       
       // Monitoring VM
-      Monitoring = vm 'monitoring' {
+      Monitoring = Node_Vm 'monitoring' {
         #SharedInfra
         technology "Prometheus + Grafana + ELK"
         description """
@@ -269,7 +269,7 @@ deployment {
     }
 
   // Infrastructure Zone - Backup and disaster recovery
-  InfraZone = zone 'Backup & Disaster Recovery (VLAN 105: 10.5.0.0/24)' {
+  InfraZone = Zone 'Backup & Disaster Recovery (VLAN 105: 10.5.0.0/24)' {
       #Infrastructure
       description """
         Backup, replication, and disaster recovery infrastructure
@@ -282,7 +282,7 @@ deployment {
       """
       
       // Backup VM
-      Backup = vm 'backup' {
+      Backup = Node_Vm 'backup' {
         technology "Bacula / Veeam"
         description """
           Offsite backup and disaster recovery
@@ -396,14 +396,14 @@ deployment {
   }
 
   // CI/CD Infrastructure
-  environment Cicd 'CI/CD Pipeline Infrastructure' {
+  Node_Environment Cicd 'CI/CD Pipeline Infrastructure' {
     #Cicd
     description """
       Continuous Integration and Continuous Deployment infrastructure
       for automated testing and deployment of microservices
     """
 
-    CicdZone = zone 'CI/CD Tools Zone (VLAN 200: 10.200.0.0/24)' {
+    CicdZone = Zone 'CI/CD Tools Zone (VLAN 200: 10.200.0.0/24)' {
       #Pipeline
       description """
         Development and deployment automation tools
@@ -416,7 +416,7 @@ deployment {
       """
 
       // Git Repository
-      GitServerVm = vm 'git-server-vm' {
+      GitServerVm = Node_Vm 'git-server-vm' {
         #SharedInfra
         technology "GitLab / GitHub Enterprise"
         description """
@@ -433,7 +433,7 @@ deployment {
       }
 
       // CI/CD Pipeline Server
-      CicdPipelineVm = vm 'cicd-pipeline-vm' {
+      CicdPipelineVm = Node_Vm 'cicd-pipeline-vm' {
         #SharedInfra
         technology "GitLab CI / Jenkins"
         description """
@@ -451,7 +451,7 @@ deployment {
       }
 
       // Docker Registry
-      RegistryVm = vm 'registry-vm' {
+      RegistryVm = Node_Vm 'registry-vm' {
         #SharedInfra
         technology "Docker Registry / Harbor"
         description """
@@ -469,7 +469,7 @@ deployment {
       }
 
       // Artifact Repository
-      ArtifactRepoVm = vm 'artifact-repo-vm' {
+      ArtifactRepoVm = Node_Vm 'artifact-repo-vm' {
         #SharedInfra
         technology "Nexus / Artifactory"
         description """

@@ -1,135 +1,139 @@
 model {
-  customer = person 'Client' {
+  customer = Actor_Person 'Client' {
     description 'Vault service user'
   }
 
   // --- TARGET SYSTEM ---
-  vault = system 'Secure Vault System' {
+  vault = System_Existing 'Secure Vault System' {
     description 'Microservices-based secure file vault with async processing and distributed storage'
     
     // 0. Frontend
-    frontend = container 'Web UI' {
+    frontend = Container_Spa 'Web UI' {
       technology 'React SPA'
       description 'Single Page Application'
+      icon tech:react
     }
 
     // 1. Entry Point
-    api = container 'API Gateway' {
+    api = Container 'API Gateway' {
       technology 'Kong / API Gateway'
       description 'Routes requests and validates auth'
+      icon tech:kong
 
-      router = component 'Router' {
+      router = Component 'Router' {
         technology 'Express Router'
         description 'Routes incoming requests to appropriate microservices'
       }
 
-      auth = component 'Auth Middleware' {
+      auth = Component 'Auth Middleware' {
         technology 'JWT'
         description 'Validates JWT tokens and authorizes requests'
       }
     }
 
     // 2. Upload Service
-    uploadService = container 'Upload Service' {
+    uploadService = Container_ApplicationServer 'Upload Service' {
       technology 'Node.js / Express'
       description 'Handles file uploads and validation'
+      icon tech:nodejs
 
-      uploadHandler = component 'Upload Handler' {
+      uploadHandler = Component 'Upload Handler' {
         technology 'Multer / Express'
         description 'Receives and validates files'
       }
 
-      fileValidator = component 'File Validator' {
+      fileValidator = Component 'File Validator' {
         technology 'File Analysis'
         description 'Validates file type, size, and structure before queuing'
       }
     }
 
     // 3. Retrieval Service (merged Document + Download)
-    retrievalService = container 'Retrieval Service' {
+    retrievalService = Container_ApplicationServer 'Retrieval Service' {
       technology 'GoLang'
       description 'Document metadata management and file retrieval with caching'
+      icon tech:go
 
-      retrievalHandler = component 'Retrieval Handler' {
+      retrievalHandler = Component 'Retrieval Handler' {
         technology 'HTTP Handler'
         description 'Handles metadata queries and file retrieval requests'
       }
 
-      cacheManager = component 'Cache Manager' {
+      cacheManager = Component 'Cache Manager' {
         technology 'Redis Client'
         description 'Caches frequently accessed metadata and encryption keys'
       }
 
-      decryptor = component 'Decryption Service' {
+      decryptor = Component 'Decryption Service' {
         technology 'AES-256'
         description 'Decrypts files for download'
       }
     }
 
     // 5. Async Buffer
-    jobs = queue 'Processing Queue' {
+    jobs = Container_Queue 'Processing Queue' {
 	  #Queue
       technology 'RabbitMQ'
       description 'Async job queue for file processing tasks (scan, encrypt, store)'
+      icon tech:rabbitmq-icon
     }
 
     // 6. Processing Worker
-    worker = container 'Processing Worker' {
+    worker = Container_ProcessingServer 'Processing Worker' {
       technology 'GoLang'
       description 'Async file processing (scanning, encryption, storage)'
+      icon tech:go
 
-      consumer = component 'Queue Consumer' {
+      consumer = Component 'Queue Consumer' {
         technology 'RabbitMQ Client'
         description 'Receives jobs from queue'
       }
 
-      orchestrator = component 'Job Orchestrator' {
+      orchestrator = Component 'Job Orchestrator' {
         technology 'Workflow Engine'
         description 'Coordinates processing steps and error handling'
       }
 
-      scannerClient = component 'Virus Scanner Client' {
+      scannerClient = Component 'Virus Scanner Client' {
         technology 'VirusTotal SDK'
         description 'Anti-virus scanning integration'
       }
 
-      encryptor = component 'Encryption Service' {
+      encryptor = Component 'Encryption Service' {
         technology 'AES-256 GCM'
         description 'Encrypts files before storage'
       }
 
-      minioClient = component 'MinIO Client' {
+      minioClient = Component 'MinIO Client' {
         technology 'S3-compatible SDK'
         description 'Handles encrypted file storage to MinIO (not AWS S3)'
       }
 
-      metadataWriter = component 'Metadata Writer' {
+      metadataWriter = Component 'Metadata Writer' {
         technology 'MongoDB Driver'
         description 'Persists document metadata'
       }
 
-      errorHandler = component 'Error Handler' {
+      errorHandler = Component 'Error Handler' {
         technology 'Dead Letter Queue'
         description 'Manages failed jobs and retries'
       }
     }
 
     // 7. Persistence
-    docDB = database 'Document DB' {
+    docDB = Container_Database 'Document DB' {
       technology 'MongoDB'
+      icon tech:mongodb
     }
   }
 
   // --- INTERNAL STORAGE ---
-  minio = system 'MinIO Object Storage' {
+  minio = System_Existing 'MinIO Object Storage' {
     description 'Primary encrypted object storage (on-premises) with 3-node replication'
   }
 
   // --- EXTERNAL DEPENDENCIES (Cloud / SaaS) ---
-  scanner = system 'VirusTotal API' {
-    #External
-    #Saas
-    #Security
+  scanner = System_External 'VirusTotal API' {
     description 'SaaS Antivirus'
   }
 

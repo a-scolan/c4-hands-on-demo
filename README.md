@@ -221,20 +221,29 @@ Each project has specialized files following [LikeC4 DSL structure](https://like
 
 ### Naming Conventions
 
-**Unified PascalCase for all elements:**
+**PascalCase with Category_Subtype pattern:**
 
 | Type | Pattern | Examples |
 |------|---------|----------|
-| Systems/Containers | PascalCase | `SecureVault`, `ApiGateway` |
-| Deployment nodes | PascalCase | `ProdApigwVm`, `AppTier` |
+| Simple elements | PascalCase | `SecureVault`, `ApiGateway`, `Customer` |
+| Categorized elements | Category_Subtype | `Actor_Person`, `System_Legacy`, `Container_Api` |
+| Deployment nodes | Category_Subtype | `Zone_Internet`, `Node_Vm`, `Infra_Router` |
 | Components | PascalCase | `FileValidator`, `CacheManager` |
 | FQN references | dots | `vault.api`, `Prod.AppTier.FrontendVm` |
 | Tags | PascalCase | `#External`, `#Legacy`, `#Production` |
 
-**Why PascalCase everywhere?**
-- Consistent across all element types
-- Easier to read and maintain
-- No context-switching between naming styles
+**Naming Rules:**
+- Use PascalCase for all parts of element names
+- Use underscore `_` to explicitly separate category from subtype
+- Category represents the element family (Actor, System, Container, Zone, Node, Infra)
+- Subtype represents the specific variant (Person, Legacy, Api, Internet, Vm, Router)
+- Simple elements without categorization use plain PascalCase
+
+**Why this pattern?**
+- Clear visual separation of category and subtype
+- Explicit hierarchy in element definitions
+- Easy to scan and understand element taxonomies
+- Consistent with type naming conventions in many languages
 
 [LikeC4 naming docs](https://likec4.dev/dsl/model#element-definitions)
 
@@ -497,7 +506,7 @@ description """
 - **Shared specs prevent duplication** - Both projects inherit common definitions
 - **Scoped wildcards in views** - Use `-> zone.*` and `zone.*->` for related elements only
 - **Technology matters** - Always specify tech stack for containers and components
-- **Use icons** - `icon tech:spring`, `icon tech:react` for visual recognition
+- **Use icons** - `icon tech:spring-icon`, `icon tech:react` for visual recognition
 
 ### 📚 Learn More
 

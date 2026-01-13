@@ -1,105 +1,101 @@
 // --- THE MODEL (Ground reality) ---
 model {
   // Main actor
-  customer = person 'Client' {
+  customer = Actor_Person 'Client' {
     description 'Vault service user'
   }
 
   // The monolithic system
-  vault = system 'Secure Vault System' {
-    #Legacy
+  vault = System_Legacy 'Secure Vault System' {
     
     // Monolith deployed together
-    monolith = container 'Spring Boot Monolith' {
-      #Legacy
+    monolith = Container_ApplicationServer 'Spring Boot Monolith' {
       technology 'Java / Spring Boot'
       description 'Monolithic application'
-      icon tech:spring
+      icon tech:spring-icon
 
       // Presentation layer
-      frontend = component 'Web UI Layer' {
+      frontend = Component 'Web UI Layer' {
         description 'JSP/Servlets UI'
         technology 'Spring MVC'
-        icon tech:spring
+        icon tech:spring-icon
       }
 
       // Upload handling
-      uploadHandler = component 'Upload Controller' {
+      uploadHandler = Component 'Upload Controller' {
         description 'Handles file uploads'
         technology 'Spring @RestController'
-        icon tech:spring
+        icon tech:spring-icon
       }
 
       // File validation
-      fileValidator = component 'File Validator' {
+      fileValidator = Component 'File Validator' {
         description 'Validates file type, size, structure'
         technology 'Spring Component'
-        icon tech:spring
+        icon tech:spring-icon
       }
 
       // Business layer
-      documentService = component 'Document Service' {
+      documentService = Component 'Document Service' {
         description 'Document business logic and orchestration'
         technology 'Spring @Service'
-        icon tech:spring
+        icon tech:spring-icon
       }
 
       // Security layer
-      scannerClient = component 'Virus Scanner Client' {
+      scannerClient = Component 'Virus Scanner Client' {
         description 'Synchronous virus scanning (blocking)'
         technology 'VirusTotal SDK'
       }
 
-      encryptor = component 'Encryption Service' {
+      encryptor = Component 'Encryption Service' {
         description 'Encrypts files and stores keys'
         technology 'AES-256 GCM'
       }
 
-      decryptor = component 'Decryption Service' {
+      decryptor = Component 'Decryption Service' {
         description 'Retrieves keys and decrypts files'
         technology 'AES-256 GCM'
       }
 
       // Storage handler
-      storageHandler = component 'Storage Handler' {
+      storageHandler = Component 'Storage Handler' {
         description 'Manages file persistence to disk'
         technology 'Spring Component'
-        icon tech:spring
+        icon tech:spring-icon
       }
 
       // Error handler
-      errorHandler = component 'Error Handler' {
+      errorHandler = Component 'Error Handler' {
         description 'Handles and logs processing errors'
         technology 'Spring Component'
-        icon tech:spring
+        icon tech:spring-icon
       }
 
       // Data access layer
-      dao = component 'Data Access Layer' {
+      dao = Component 'Data Access Layer' {
         description 'Repositories and DAOs'
         technology 'Spring Data'
-        icon tech:spring
+        icon tech:spring-icon
       }
     }
 
     // The database
-    db = database 'Master DB' {
+    db = Container_Database 'Master DB' {
       description 'Metadata storage'
       technology 'PostgreSQL'
+      icon tech:postgresql
     }
 
     // Local disk (Single point of failure!)
-    disk = storage 'Local Disk Array' {
+    disk = Container_FileServer 'Local Disk Array' {
       description 'Mount point /mnt/data'
       technology 'NFS'
     }
   }
 
   // External security service
-  scanner = system 'VirusTotal API' {
-    #External
-    #Saas
-    #Security
+  scanner = System_External 'VirusTotal API' {
     description 'SaaS Antivirus'
   }
 
