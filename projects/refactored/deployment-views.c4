@@ -8,8 +8,8 @@ views 'Deployment' {
     description 'Physical datacenter deployment with network zones, VLANs, and inter-zone connectivity'
     
     include 
-      prod,
-      prod.** where kind is vm
+      Prod,
+      Prod.** where kind is vm
   }
 
   deployment view app_tier {
@@ -17,15 +17,15 @@ views 'Deployment' {
     description 'Microservices deployed across VM instances with external interactions'
     
     include
-      prod.appTier,
-      prod.appTier.** where kind is vm,
-      prod.dmz,
-      prod.dmz.** where kind is vm,
-      prod.procTier.prod-queue-vm,
-      prod.dataTier.prod-database-vm,
-      prod.dataTier.prod-storage-vm,
-      -> prod.appTier.*,
-      prod.appTier.* ->
+      Prod.AppTier,
+      Prod.AppTier.** where kind is vm,
+      Prod.Dmz,
+      Prod.Dmz.** where kind is vm,
+      Prod.ProcTier.ProdQueueVm,
+      Prod.DataTier.ProdDatabaseVm,
+      Prod.DataTier.ProdStorageVm,
+      -> Prod.AppTier.*,
+      Prod.AppTier.* ->
   }
 
   deployment view proc_tier {
@@ -33,13 +33,13 @@ views 'Deployment' {
     description 'Async job processing with RabbitMQ and worker nodes, showing connections to app and data tiers'
     
     include
-      prod.procTier,
-      prod.procTier.** where kind is vm,
-      prod.appTier.prod-upload-vm,
-      prod.dataTier.prod-database-vm,
-      prod.dataTier.prod-storage-vm,
-      -> prod.procTier.*,
-      prod.procTier.* ->
+      Prod.ProcTier,
+      Prod.ProcTier.** where kind is vm,
+      Prod.AppTier.ProdUploadVm,
+      Prod.DataTier.ProdDatabaseVm,
+      Prod.DataTier.ProdStorageVm,
+      -> Prod.ProcTier.*,
+      Prod.ProcTier.* ->
   }
 
   deployment view data_tier {
@@ -47,12 +47,12 @@ views 'Deployment' {
     description 'Database and object storage infrastructure with service dependencies'
     
     include
-      prod.dataTier,
-      prod.dataTier.** where kind is vm,
-      prod.appTier.prod-retrieval-vm,
-      prod.procTier.prod-worker-vm,
-      -> prod.dataTier.*,
-      prod.dataTier.* ->
+      Prod.DataTier,
+      Prod.DataTier.** where kind is vm,
+      Prod.AppTier.ProdRetrievalVm,
+      Prod.ProcTier.ProdWorkerVm,
+      -> Prod.DataTier.*,
+      Prod.DataTier.* ->
   }
 
   deployment view security {
@@ -60,18 +60,18 @@ views 'Deployment' {
     description 'Monitoring infrastructure with all monitored systems'
     
     include
-      prod.secZone,
-      prod.secZone.** where kind is vm,
-      prod.dmz,
-      prod.dmz.** where kind is vm,
-      prod.appTier,
-      prod.appTier.** where kind is vm,
-      prod.procTier,
-      prod.procTier.** where kind is vm,
-      prod.dataTier,
-      prod.dataTier.** where kind is vm,
-      -> prod.secZone.*,
-      prod.secZone.* ->
+      Prod.SecZone,
+      Prod.SecZone.** where kind is vm,
+      Prod.Dmz,
+      Prod.Dmz.** where kind is vm,
+      Prod.AppTier,
+      Prod.AppTier.** where kind is vm,
+      Prod.ProcTier,
+      Prod.ProcTier.** where kind is vm,
+      Prod.DataTier,
+      Prod.DataTier.** where kind is vm,
+      -> Prod.SecZone.*,
+      Prod.SecZone.* ->
   }
 
   deployment view backup_recovery {
@@ -79,22 +79,22 @@ views 'Deployment' {
     description 'Backup infrastructure with all protected data systems and cloud replication to AWS S3'
     
     include
-      prod.infraZone,
-      prod.infraZone.** where kind is vm,
-      prod.dataTier,
-      prod.dataTier.** where kind is vm,
-      -> prod.infraZone.*,
-      prod.infraZone.* ->
+      Prod.InfraZone,
+      Prod.InfraZone.** where kind is vm,
+      Prod.DataTier,
+      Prod.DataTier.** where kind is vm,
+      -> Prod.InfraZone.*,
+      Prod.InfraZone.* ->
   }
   deployment view cicd {
     title 'Pipeline & Deployments'
     description 'Continuous integration, build, and deployment pipeline infrastructure and how it deploys to production services'
     
     include
-      cicd,
-      cicd.** where kind is vm,
-      prod.** where tag is #deployment,
-      -> cicd.**,
-      cicd.** ->
+      Cicd,
+      Cicd.** where kind is vm,
+      Prod.** where tag is #Deployment,
+      -> Cicd.**,
+      Cicd.** ->
   }
 }

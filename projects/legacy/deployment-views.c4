@@ -8,8 +8,8 @@ views 'Deployment' {
     description 'Physical datacenter deployment with network zones, VLANs, and inter-zone connectivity'
     
     include
-      prod,
-      prod.** where kind is vm
+      Prod,
+      Prod.** where kind is vm
   }
 
   deployment view app_tier {
@@ -17,14 +17,14 @@ views 'Deployment' {
     description 'Monolithic application instances with load balancing, failover, and data tier connections'
     
     include
-      prod.appTier,
-      prod.appTier.** where kind is vm,
-      prod.dmz,
-      prod.dmz.** where kind is vm,
-      prod.dataTier.prod-database-vm,
-      prod.dataTier.prod-nfs-vm,
-      -> prod.appTier.*,
-      prod.appTier.* ->
+      Prod.AppTier,
+      Prod.AppTier.** where kind is vm,
+      Prod.Dmz,
+      Prod.Dmz.** where kind is vm,
+      Prod.DataTier.ProdDatabaseVm,
+      Prod.DataTier.ProdNfsVm,
+      -> Prod.AppTier.*,
+      Prod.AppTier.* ->
   }
 
   deployment view data_tier {
@@ -32,12 +32,12 @@ views 'Deployment' {
     description 'PostgreSQL database cluster and NFS storage infrastructure with application dependencies'
     
     include
-      prod.dataTier,
-      prod.dataTier.** where kind is vm,
-      prod.appTier.prod-monolith-vm01,
-      prod.appTier.prod-monolith-vm02,
-      -> prod.dataTier.*,
-      prod.dataTier.* ->
+      Prod.DataTier,
+      Prod.DataTier.** where kind is vm,
+      Prod.AppTier.ProdMonolithVm01,
+      Prod.AppTier.ProdMonolithVm02,
+      -> Prod.DataTier.*,
+      Prod.DataTier.* ->
   }
 
   deployment view security {
@@ -45,16 +45,16 @@ views 'Deployment' {
     description 'Monitoring infrastructure with all monitored systems'
     
     include
-      prod.secZone,
-      prod.secZone.** where kind is vm,
-      prod.dmz,
-      prod.dmz.** where kind is vm,
-      prod.appTier,
-      prod.appTier.** where kind is vm,
-      prod.dataTier,
-      prod.dataTier.** where kind is vm,
-      -> prod.secZone.*,
-      prod.secZone.* ->
+      Prod.SecZone,
+      Prod.SecZone.** where kind is vm,
+      Prod.Dmz,
+      Prod.Dmz.** where kind is vm,
+      Prod.AppTier,
+      Prod.AppTier.** where kind is vm,
+      Prod.DataTier,
+      Prod.DataTier.** where kind is vm,
+      -> Prod.SecZone.*,
+      Prod.SecZone.* ->
   }
 
   deployment view backup_recovery {
@@ -62,12 +62,12 @@ views 'Deployment' {
     description 'Backup infrastructure with all protected data systems'
     
     include
-      prod.infraZone,
-      prod.infraZone.** where kind is vm,
-      prod.dataTier,
-      prod.dataTier.** where kind is vm,
-      -> prod.infraZone.*,
-      prod.infraZone.* ->
+      Prod.InfraZone,
+      Prod.InfraZone.** where kind is vm,
+      Prod.DataTier,
+      Prod.DataTier.** where kind is vm,
+      -> Prod.InfraZone.*,
+      Prod.InfraZone.* ->
   }
 
   deployment view cicd {
@@ -75,10 +75,10 @@ views 'Deployment' {
     description 'Continuous integration, build, and deployment pipeline infrastructure and how it deploys to production services'
     
     include
-      cicd,
-      cicd.** where kind is vm,
-      prod.** where tag is #deployment,
-      -> cicd.**,
-      cicd.** ->
+      Cicd,
+      Cicd.** where kind is vm,
+      Prod.** where tag is #Deployment,
+      -> Cicd.**,
+      Cicd.** ->
   }
 }

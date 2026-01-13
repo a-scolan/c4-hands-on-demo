@@ -153,12 +153,20 @@ Each project has specialized files following [LikeC4 DSL structure](https://like
 
 ### Naming Conventions
 
+**Unified PascalCase for all elements:**
+
 | Type | Pattern | Examples |
 |------|---------|----------|
-| Systems/Containers | PascalCase | `SecureVault`, `APIGateway` |
-| Deployment nodes | snake_case | `api_gateway`, `app_tier` |
-| FQN references | dots | `vault.api`, `prod.appTier.frontend_vm` |
-| Tags | kebab-case | `#external`, `#legacy` |
+| Systems/Containers | PascalCase | `SecureVault`, `ApiGateway` |
+| Deployment nodes | PascalCase | `ProdApigwVm`, `AppTier` |
+| Components | PascalCase | `FileValidator`, `CacheManager` |
+| FQN references | dots | `vault.api`, `Prod.AppTier.FrontendVm` |
+| Tags | PascalCase | `#External`, `#Legacy`, `#Production` |
+
+**Why PascalCase everywhere?**
+- Consistent across all element types
+- Easier to read and maintain
+- No context-switching between naming styles
 
 [LikeC4 naming docs](https://likec4.dev/dsl/model#element-definitions)
 
@@ -171,13 +179,248 @@ Each project has specialized files following [LikeC4 DSL structure](https://like
 
 [LikeC4 relationships](https://likec4.dev/dsl/relationships)
 
-### Best Practices Shown
+## 📐 Best Practices & Standards
+
+This repository demonstrates production-ready LikeC4 modeling patterns. All best practices are consistently applied across both legacy and refactored projects.
+
+### 🎯 Relationship Typing Rules
+
+**RULE 1: All static relationships MUST have a typed kind**
+
+✅ **DO** - Always specify relationship kinds in model and deployment files:
+```likec4
+// Model files - business logic relationships
+customer -[calls]-> vault.api 'Access API'
+vault.worker -[async]-> vault.jobs 'Queue job'
+vault.service -[reads]-> vault.db 'Fetch metadata'
+
+// Deployment files - infrastructure protocols
+AppTier -[https]-> DataTier 'API traffic'
+Worker -[tcp]-> Database 'Persist metadata'
+Upload -[amqp]-> Queue 'Publish jobs'
+```
+
+❌ **DON'T** - Use untyped arrows in model or deployment:
+```likec4
+// WRONG - Missing relationship kind
+customer -> vault.api 'Access API'
+AppTier -> DataTier 'API traffic'
+```
+
+✅ **EXCEPTION** - Dynamic views (sequences) may use untyped arrows for flow clarity:
+```likec4
+// Acceptable in dynamic views - focus is on temporal flow
+dynamic view seq_upload {
+  customer -> vault.frontend 'Upload file'
+  vault.frontend -> vault.api 'POST /upload'
+}
+```
+
+**Why?** Typed relationships enable:
+- Clear communication protocols and patterns
+- Better diagram filtering and queries
+- Consistent styling and visual hierarchy
+- Self-documenting architecture
+
+### 🏗️ Architecture Organization
 
 ✅ **Separation of concerns** - Logical and physical architectures separate  
 ✅ **Proper hierarchies** - Systems → containers → components; VMs → apps  
 ✅ **Shared specs** - Common definitions prevent duplication  
-✅ **Clear relationships** - All connections have labels, kinds, and ports  
-✅ **Consistent styling** - Colors, tags, and technologies documented  
+✅ **File-per-purpose** - One concern per file (model, deployment, views, sequences)
+
+**File Structure Pattern:**
+```
+project/
+├── spec.c4              # Element kinds, colors, tags
+├── model.c4             # Business logic (deployment-agnostic)
+├── views.c4             # C1/C2/C3 visualization
+├── deployment.c4        # Physical infrastructure
+├── deployment-views.c4  # Infrastructure topology views
+└── sequences.c4         # Dynamic interaction flows
+```
+
+### 🎨 Naming & Documentation Standards
+
+**RULE 2: Use PascalCase for all element names**
+
+✅ **Consistent naming across all element types:**
+```likec4
+// Elements
+element ApiGateway
+element UploadService
+element ProdApigwVm
+
+// Tags
+#Production
+#Infrastructure
+#Deployment
+
+// Zones and environments
+Prod.AppTier.ProdFrontendVm
+Cicd.CicdZone.GitServerVm
+```
+
+**RULE 3: Always include descriptions and technologies**
+
+✅ **Rich metadata for every element:**
+```likec4
+container uploadService 'Upload Service' {
+  technology 'Node.js / Express'
+  description 'Handles file uploads and validation'
+  
+  uploadHandler = component 'Upload Handler' {
+    description 'Receives and validates files'
+    technology 'Multer / Express'
+  }
+}
+```
+
+✅ **Detailed deployment infrastructure:**
+```likec4
+ProdDatabaseVm = vm 'ProdDatabaseVm' {
+  technology "MongoDB 6.0"
+  description """
+    Document metadata and encryption keys
+    
+    | Property | Value |
+    |:---------|:------|
+    | eth0 | 10.3.0.17/24 |
+    | CPU | 16 vCPU |
+    | RAM | 64 GB |
+    | Port | 27017 |
+  """
+}
+```
+
+**Why?** Rich metadata provides:
+- Self-documenting diagrams
+- Better stakeholder communication
+- Operational clarity (ports, IPs, specs)
+- Onboarding efficiency
+
+### 🔗 Relationship Best Practices
+
+**RULE 4: All relationships must have descriptive labels**
+
+✅ **Clear, actionable labels:**
+```likec4
+vault.api -[calls]-> uploadService 'Route upload requests'
+monitoring -[tcp]-> database 'Scrape metrics'
+worker -[writes]-> storage 'Save encrypted file (primary)'
+```
+
+**RULE 5: Include technical details in deployment relationships**
+
+✅ **Document ports, protocols, and routing:**
+```likec4
+ProdApigwVm -[https]-> ProdUploadVm 'Route uploads' {
+  #Service #Routing
+  description "443 -> 3001"
+}
+
+AppTier -[tcp]-> DataTier 'Service reads/writes' {
+  description "ephemeral -> 27017 (MongoDB), 9000-9001 (MinIO)"
+}
+```
+
+### 📊 View Design Patterns
+
+**RULE 6: Use scoped wildcards for focused views**
+
+✅ **Filter by context, not dump everything:**
+```likec4
+deployment view app_tier {
+  include Prod.AppTier.**
+  include -> Prod.AppTier.*    // Only incoming to this tier
+  include Prod.AppTier.* ->     // Only outgoing from this tier
+}
+```
+
+❌ **DON'T** - Include unfiltered wildcards:
+```likec4
+// WRONG - Shows too much
+include **
+include ** -> **
+```
+
+**RULE 7: Use rank to guide layout**
+
+✅ **Control diagram flow with rank:**
+```likec4
+view c2_container {
+  include customer, vault.*
+  
+  rank source {
+    customer
+  }
+  
+  rank sink {
+    minio,
+    scanner
+  }
+}
+```
+
+### 🏷️ Tagging Strategy
+
+**RULE 8: Use semantic tags for filtering and styling**
+
+✅ **Consistent tag taxonomy:**
+```likec4
+// Purpose tags
+#External, #Internal, #Legacy, #Saas
+
+// Environment tags
+#Production, #Cicd, #Development
+
+// Infrastructure tags
+#Infrastructure, #Networking, #Security, #Monitoring
+
+// Service tags
+#Deployment, #Service, #Routing, #Persistence
+```
+
+### 🔄 Model-Deployment Linking
+
+**RULE 9: Link logical to physical with instanceOf**
+
+✅ **Connect model containers to deployment apps:**
+```likec4
+// In model.c4
+container uploadService 'Upload Service' {
+  technology 'Node.js / Express'
+}
+
+// In deployment.c4
+ProdUploadVm = vm 'ProdUploadVm' {
+  uploadApp = app 'Upload Service App' {
+    instanceOf vault.uploadService  // Links to model
+  }
+}
+```
+
+**Why?** This enables:
+- Same model deployed to multiple environments
+- Clear traceability from business to infrastructure
+- Deployment-agnostic architecture design
+
+### 📝 Documentation Excellence
+
+**RULE 10: Use multi-line descriptions for complex elements**
+
+✅ **Structured tables in descriptions:**
+```likec4
+description """
+  Primary storage cluster with high availability
+  
+  | Property | Value |
+  |:---------|:------|
+  | Storage | 500 TB |
+  | Replication | 3-node cluster |
+  | Availability | 99.9% |
+"""
+```
 
 ### Quick Tips
 
@@ -185,5 +428,33 @@ Each project has specialized files following [LikeC4 DSL structure](https://like
 - **Apps reference containers via `instanceOf`** - Links logical to physical
 - **Shared specs prevent duplication** - Both projects inherit common definitions
 - **Scoped wildcards in views** - Use `-> zone.*` and `zone.*->` for related elements only
+- **Technology matters** - Always specify tech stack for containers and components
+- **Use icons** - `icon tech:spring`, `icon tech:react` for visual recognition
+
+### 📚 Learn More
 
 For detailed syntax and examples, visit [LikeC4 Documentation](https://likec4.dev/dsl)
+## 📝 Changelog
+
+### 2024-12-XX - Major Refactoring: Unified PascalCase Naming
+
+**Comprehensive naming convention standardization across entire codebase**
+
+- ✅ **380+ replacements** across 8 core files
+- ✅ **All tags** converted to PascalCase: `#Production`, `#Infrastructure`, `#Deployment`, etc.
+- ✅ **All zones** converted to PascalCase: `Dmz`, `AppTier`, `DataTier`, `SecZone`, `InfraZone`, `CicdZone`
+- ✅ **All VMs** converted to PascalCase: `ProdApigwVm`, `ProdFrontendVm`, `ProdUploadVm`, etc.
+- ✅ **All environments** converted to PascalCase: `Prod`, `Cicd`
+- ✅ **All FQN paths** updated: `Prod.AppTier.ProdFrontendVm`, `Cicd.CicdZone.GitServerVm`
+- ✅ **All deployment views** updated with PascalCase filters
+- ✅ **Zero compilation errors** - All files validated successfully
+
+**Impact:** 
+- Eliminated mixed naming conventions (previously: PascalCase, snake_case, kebab-case)
+- Improved code readability and maintainability
+- Consistent experience across all LikeC4 elements
+
+**Files updated:**
+- `shared/spec.c4` & `deployment-spec.c4` (19 tags)
+- `legacy/model.c4`, `deployment.c4`, `deployment-views.c4`
+- `refactored/model.c4`, `deployment.c4`, `deployment-views.c4`

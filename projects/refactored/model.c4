@@ -1,8 +1,11 @@
 model {
-  customer = person 'Client'
+  customer = person 'Client' {
+    description 'Vault service user'
+  }
 
   // --- TARGET SYSTEM ---
   vault = system 'Secure Vault System' {
+    description 'Microservices-based secure file vault with async processing and distributed storage'
     
     // 0. Frontend
     frontend = container 'Web UI' {
@@ -17,10 +20,12 @@ model {
 
       router = component 'Router' {
         technology 'Express Router'
+        description 'Routes incoming requests to appropriate microservices'
       }
 
       auth = component 'Auth Middleware' {
         technology 'JWT'
+        description 'Validates JWT tokens and authorizes requests'
       }
     }
 
@@ -52,7 +57,7 @@ model {
 
       cacheManager = component 'Cache Manager' {
         technology 'Redis Client'
-        description 'Caches frequently accessed metadata and decrypted files'
+        description 'Caches frequently accessed metadata and encryption keys'
       }
 
       decryptor = component 'Decryption Service' {
@@ -63,8 +68,9 @@ model {
 
     // 5. Async Buffer
     jobs = queue 'Processing Queue' {
-	  #queue
+	  #Queue
       technology 'RabbitMQ'
+      description 'Async job queue for file processing tasks (scan, encrypt, store)'
     }
 
     // 6. Processing Worker
@@ -92,9 +98,9 @@ model {
         description 'Encrypts files before storage'
       }
 
-      s3Client = component 'S3 Client' {
-        technology 'AWS SDK'
-        description 'Handles file storage operations'
+      minioClient = component 'MinIO Client' {
+        technology 'S3-compatible SDK'
+        description 'Handles encrypted file storage to MinIO (not AWS S3)'
       }
 
       metadataWriter = component 'Metadata Writer' {
@@ -121,9 +127,9 @@ model {
 
   // --- EXTERNAL DEPENDENCIES (Cloud / SaaS) ---
   scanner = system 'VirusTotal API' {
-    #external
-    #saas
-    #security
+    #External
+    #Saas
+    #Security
     description 'SaaS Antivirus'
   }
 
@@ -150,8 +156,8 @@ model {
   vault.worker.scannerClient -[calls]-> scanner 'Anti-virus check'
   vault.worker.orchestrator -[uses]-> vault.worker.encryptor 'Encrypt clean file'
   vault.worker.encryptor -[writes]-> docDB 'Store encryption key'
-  vault.worker.orchestrator -[uses]-> vault.worker.s3Client 'Store file'
-  vault.worker.s3Client -[writes]-> minio 'Save encrypted file (primary)'
+  vault.worker.orchestrator -[uses]-> vault.worker.minioClient 'Store file'
+  vault.worker.minioClient -[writes]-> minio 'Save encrypted file (primary)'
   vault.worker.orchestrator -[uses]-> vault.worker.metadataWriter 'Update status'
   vault.worker.metadataWriter -[writes]-> docDB 'Save metadata as READY'
   
@@ -165,5 +171,5 @@ model {
   vault.retrievalService.cacheManager -[reads]-> docDB 'Cache miss: fetch metadata'
   vault.retrievalService.retrievalHandler -[reads]-> minio 'Fetch encrypted file (primary)'
   vault.retrievalService.retrievalHandler -[uses]-> vault.retrievalService.decryptor 'Decrypt file'
-  vault.retrievalService.decryptor -[reads]-> docDB 'Retrieve encryption key'
+  vault.retrievalService.decryptor -[uses]-> vault.retrievalService.cacheManager 'Retrieve encryption key'
 }

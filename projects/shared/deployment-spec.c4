@@ -34,80 +34,80 @@ specification {
   relationship amqp
 
   // Deployment-specific tags
-  tag production {
+  tag Production {
     color rgb(5, 150, 105)
   }
 
-  tag infrastructure {
+  tag Infrastructure {
     color rgb(2, 132, 199)
   }
 
-  tag networking {
+  tag Networking {
     color rgb(37, 99, 235)
   }
 
-  tag deployment {
+  tag Deployment {
     color rgb(84, 34, 170)
   }
 
   // Relationship tags for legend
-  tag ingress {
+  tag Ingress {
     color rgb(34, 197, 94)
   }
 
-  tag routing {
+  tag Routing {
     color rgb(59, 130, 246)
   }
 
-  tag messaging {
+  tag Messaging {
     color rgb(251, 191, 36)
   }
 
-  tag async {
+  tag Async {
     color rgb(251, 146, 60)
   }
 
-  tag persistence {
+  tag Persistence {
     color rgb(107, 114, 128)
   }
 
-  tag data {
+  tag Data {
     color rgb(75, 85, 99)
   }
 
-  tag service {
+  tag Service {
     color rgb(59, 130, 246)
   }
 
-  tag monitoring {
+  tag Monitoring {
     color rgb(168, 85, 247)
   }
 
-  tag observability {
+  tag Observability {
     color rgb(192, 132, 250)
   }
 
-  tag backup {
+  tag Backup {
     color rgb(99, 102, 241)
   }
 
-  tag recovery {
+  tag Recovery {
     color rgb(129, 140, 248)
   }
 
-  tag shared_infra {
+  tag SharedInfra {
     color rgb(139, 92, 246)
   }
 
-  tag cicd {
+  tag Cicd {
     color rgb(217, 70, 239)
   }
 
-  tag pipeline {
+  tag Pipeline {
     color rgb(236, 72, 153)
   }
 
-  tag deployment_automation {
+  tag DeploymentAutomation {
     color rgb(168, 85, 247)
   }
 }

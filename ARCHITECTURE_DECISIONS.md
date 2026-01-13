@@ -8,17 +8,18 @@ The Vault system evolved from a **synchronous monolithic** architecture to an **
 
 ## Key Design Decisions
 
-### 1. API Gateway: Kong (vs. Node.js Express)
+### 1. API Gateway: Kong (vs. HAProxy Load Balancer)
 
-**Decision:** Upgraded from Node.js Express to Kong API Gateway
+**Decision:** Upgraded from HAProxy load balancer to Kong API Gateway
 
 **Rationale:**
-- **10-50x higher throughput** for routing under high concurrency
-- **Production-grade** auth, rate limiting, circuit breakers out-of-the-box
-- **Dedicated gateway** pattern separates concerns (routing vs. business logic)
-- Reduces risk of monolithic coupling in API layer
+- **API-aware routing:** Kong routes based on paths, headers, JWT claims (vs. HAProxy's L4/L7 load balancing only)
+- **Built-in auth:** JWT validation, OAuth2, API keys out-of-the-box (vs. HAProxy passthrough)
+- **Rate limiting & circuit breakers:** Production-grade policies without custom code
+- **Plugin ecosystem:** Extensible via Lua plugins for custom logic
+- **Microservices gateway pattern:** Routes to multiple backend services (vs. HAProxy's single backend pool)
 
-**Trade-off:** Additional infrastructure component (1 VM), justified by performance and scalability needs
+**Trade-off:** More complex than simple load balancing, but essential for microservices architecture
 
 ---
 
@@ -97,10 +98,10 @@ The Vault system evolved from a **synchronous monolithic** architecture to an **
 - Download Service (GoLang): File retrieval → MinIO + decrypt
 
 **After (1 service):**
-- Retrieval Service (GoLang): Metadata + files + caching
-  - Retrieval Handler: Unified metadata queries and file downloads
-  - Cache Manager: Redis (metadata + decrypted files)
-  - Decryptor: AES-256 decryption
+- Retrieval Service (GoLang): Metadata + files + Redis caching
+  - Retrieval Handler: Unified HTTP handler for metadata queries and file retrieval
+  - Cache Manager: Redis client caching frequently accessed metadata and decrypted files
+  - Decryptor: AES-256 decryption service
 
 **Benefits:**
 - **50% fewer VMs** in app tier (3 instead of 4)
@@ -123,17 +124,19 @@ The Vault system evolved from a **synchronous monolithic** architecture to an **
 | Tight coupling | Loose coupling via API/queue |
 | Local disk (NFS) single point of failure | Distributed object storage (MinIO 3-node) |
 | PostgreSQL + NFS | MongoDB + MinIO (better alignment) |
-| 2 services (Frontend + Monolith) | 4 services (Frontend + API + Upload + Retrieval + Worker) |
+| HAProxy + Monolith | Kong API Gateway + 4 services |
+| 1 Load Balancer (HAProxy) | 1 API Gateway (Kong) - shared infrastructure |
 
-**Service Breakdown:**
-- **Frontend:** React SPA (Node.js)
-- **API Gateway:** Kong (routing, auth, rate limiting) - *shared infra, not vault-specific*
-- **Upload Service:** File reception, fail-fast validation, and queuing (Node.js)
-- **Retrieval Service:** Unified metadata + file downloads with caching (GoLang + Redis)
-- **Processing Worker:** Async scanning, encryption, storage (GoLang)
-- **Queue:** RabbitMQ (job distribution)
-- **Database:** MongoDB 3-node replica set (metadata)
-- **Storage:** MinIO 3-node cluster (encrypted files)
+**Service Breakdown (5 vault-specific services + 1 shared infrastructure):**
+- **Frontend:** React SPA (Node.js, static assets)
+- **Upload Service:** File reception, fail-fast validation, job queuing (Node.js + Multer)
+- **Retrieval Service:** Unified metadata + file downloads with Redis caching (GoLang)
+- **Processing Worker:** Async scanning, encryption, storage to MinIO (GoLang)
+- **Queue:** RabbitMQ message broker (job distribution)
+- **Shared Infrastructure (not vault-specific):**
+  - **API Gateway:** Kong (routing, auth, rate limiting - can route to multiple systems)
+  - **Database:** MongoDB 3-node replica set (metadata)
+  - **Storage:** MinIO 3-node cluster (encrypted files, S3-compatible)
 
 ---
 
@@ -156,14 +159,14 @@ The Vault system evolved from a **synchronous monolithic** architecture to an **
 
 | Component | Technology | Why |
 |-----------|-----------|-----|
-| **API Gateway** | Kong | Production-grade, 10-50x throughput (shared infra) |
+| **API Gateway** | Kong | API-aware routing, auth, rate limiting (shared infra) |
 | **Frontend** | React SPA | Modern UX, decoupled from backend |
-| **Upload Service** | Node.js | Fast validation, easy integration with Multer |
-| **Retrieval Service** | GoLang + Redis | High-performance reads, unified caching |
-| **Worker** | GoLang | CPU-intensive encryption/scanning |
+| **Upload Service** | Node.js + Multer | Fast fail-fast validation before queuing |
+| **Retrieval Service** | GoLang + Redis | High-performance metadata/file retrieval with caching |
+| **Worker** | GoLang | CPU-intensive scanning, encryption, MinIO storage |
 | **Queue** | RabbitMQ | Industry-standard, reliable, dead letter queues |
-| **Database** | MongoDB 3-node | Flexible schema, native HA |
-| **Storage** | MinIO 3-node | On-premises S3-compatible, 99.9% HA |
+| **Database** | MongoDB 3-node | Document metadata, flexible schema, native HA |
+| **Storage** | MinIO 3-node | Primary encrypted object storage (no S3), self-healing |
 | **Monitoring** | Prometheus + Grafana + ELK | Open-source observability stack |
 | **Encryption** | AES-256-GCM | Industry standard, authenticated encryption |
 | **External Scanning** | VirusTotal API | Best-in-class virus detection (70+ engines) |

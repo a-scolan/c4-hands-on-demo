@@ -2,12 +2,12 @@
 // Self-hosted datacenter deployment with VMs and networking
 
 deployment {
-  environment prod 'Production Datacenter - EU' {
-    #production
+  environment Prod 'Production Datacenter - EU' {
+    #Production
     
     // Network Infrastructure
-  zone dmz 'Network DMZ (VLAN 100: 10.0.0.0/24)' {
-      #networking
+  zone Dmz 'Network DMZ (VLAN 100: 10.0.0.0/24)' {
+      #Networking
       description """
         Perimeter security zone with edge services
         
@@ -19,8 +19,8 @@ deployment {
       """
       
     // API Gateway exposed at the edge (replaces LB)
-    prod-apigw-vm = vm 'prod-apigw-vm' {
-        #shared_infra
+    ProdApigwVm = vm 'prod-apigw-vm' {
+        #SharedInfra
         technology "Kong / API Gateway"
           description """
             Edge API gateway terminates TLS and routes to backend services
@@ -41,8 +41,8 @@ deployment {
     }
 
   // Application Zone
-  appTier = zone 'Application Tier (VLAN 101: 10.1.0.0/24)' {
-      #infrastructure
+  AppTier = zone 'Application Tier (VLAN 101: 10.1.0.0/24)' {
+      #Infrastructure
       description """
         Microservices deployment zone
         
@@ -54,8 +54,8 @@ deployment {
       """
       
       // Frontend VM
-      prod-frontend-vm = vm 'prod-frontend-vm' {
-        #deployment
+      ProdFrontendVm = vm 'prod-frontend-vm' {
+        #Deployment
         technology "Node.js"
         description """
           React SPA and API Gateway proxy
@@ -75,8 +75,8 @@ deployment {
       }
 
       // Upload Service VM
-      prod-upload-vm = vm 'prod-upload-vm' {
-        #deployment
+      ProdUploadVm = vm 'prod-upload-vm' {
+        #Deployment
         technology "Node.js + Docker"
         description """
           File upload handler and validation service (fail-fast validation)
@@ -96,8 +96,8 @@ deployment {
       }
 
       // Retrieval Service VM (merged Document + Download)
-      prod-retrieval-vm = vm 'prod-retrieval-vm' {
-        #deployment
+      ProdRetrievalVm = vm 'prod-retrieval-vm' {
+        #Deployment
         technology "GoLang + Docker + Redis"
         description """
           Unified metadata queries and file retrieval with caching
@@ -119,8 +119,8 @@ deployment {
     }
 
   // Processing Zone
-  procTier = zone 'Processing Tier (VLAN 102: 10.2.0.0/24)' {
-      #infrastructure
+  ProcTier = zone 'Processing Tier (VLAN 102: 10.2.0.0/24)' {
+      #Infrastructure
       description """
         Async job processing zone
         
@@ -132,8 +132,8 @@ deployment {
       """
       
       // Worker VM
-      prod-worker-vm = vm 'prod-worker-vm' {
-        #deployment
+      ProdWorkerVm = vm 'prod-worker-vm' {
+        #Deployment
         technology "GoLang + Docker"
         description """
           Async job consumer and processor
@@ -153,8 +153,8 @@ deployment {
       }
 
       // Queue Broker VM
-      prod-queue-vm = vm 'prod-queue-vm' {
-        #deployment
+      ProdQueueVm = vm 'prod-queue-vm' {
+        #Deployment
         technology "RabbitMQ"
         description """
           Async job queue broker
@@ -176,8 +176,8 @@ deployment {
     }
 
   // Data Tier
-  dataTier = zone 'Data Tier (VLAN 103: 10.3.0.0/24)' {
-      #infrastructure
+  DataTier = zone 'Data Tier (VLAN 103: 10.3.0.0/24)' {
+      #Infrastructure
       description """
         Database and storage zone
         
@@ -189,8 +189,8 @@ deployment {
       """
       
       // MongoDB Cluster
-      prod-database-vm = vm 'prod-database-vm' {
-        #deployment
+      ProdDatabaseVm = vm 'prod-database-vm' {
+        #Deployment
         technology "MongoDB 6.0"
         description """
           Encrypted document metadata storage
@@ -213,8 +213,8 @@ deployment {
       }
 
       // MinIO Object Storage (Primary)
-      prod-storage-vm = vm 'prod-storage-vm' {
-        #deployment
+      ProdStorageVm = vm 'prod-storage-vm' {
+        #Deployment
         technology "MinIO"
         description """
           Primary encrypted object storage (on-premises)
@@ -237,8 +237,8 @@ deployment {
     }
 
   // Security Zone - Monitoring and observability
-  secZone = zone 'Security & Monitoring (VLAN 104: 10.4.0.0/24)' {
-      #security
+  SecZone = zone 'Security & Monitoring (VLAN 104: 10.4.0.0/24)' {
+      #Security
       description """
         Monitoring, logging, and observability infrastructure
         Firewall is implicit at zone boundary
@@ -251,8 +251,8 @@ deployment {
       """
       
       // Monitoring VM
-      monitoring = vm 'monitoring' {
-        #shared_infra
+      Monitoring = vm 'monitoring' {
+        #SharedInfra
         technology "Prometheus + Grafana + ELK"
         description """
           Metrics, logs, and alerting
@@ -269,8 +269,8 @@ deployment {
     }
 
   // Infrastructure Zone - Backup and disaster recovery
-  infraZone = zone 'Backup & Disaster Recovery (VLAN 105: 10.5.0.0/24)' {
-      #infrastructure
+  InfraZone = zone 'Backup & Disaster Recovery (VLAN 105: 10.5.0.0/24)' {
+      #Infrastructure
       description """
         Backup, replication, and disaster recovery infrastructure
         
@@ -282,7 +282,7 @@ deployment {
       """
       
       // Backup VM
-      backup = vm 'backup' {
+      Backup = vm 'backup' {
         technology "Bacula / Veeam"
         description """
           Offsite backup and disaster recovery
@@ -300,111 +300,111 @@ deployment {
     }
 
     // Inter-zone routing intents
-    dmz -[https]-> appTier 'Ingress API traffic' {
-      #ingress #routing
+    Dmz -[https]-> AppTier 'Ingress API traffic' {
+      #Ingress #Routing
       description "ephemeral (443) -> 3000-3003 via gateways 10.0.0.1 -> 10.1.0.1"
     }
-    appTier -[amqp]-> procTier 'Async queue traffic' {
-      #messaging #async
+    AppTier -[amqp]-> ProcTier 'Async queue traffic' {
+      #Messaging #Async
       description "ephemeral -> 5672 via gateways 10.1.0.1 -> 10.2.0.1"
     }
-    appTier -[tcp]-> dataTier 'Service reads/writes' {
-      #persistence #data
+    AppTier -[tcp]-> DataTier 'Service reads/writes' {
+      #Persistence #Data
       description "ephemeral -> 27017 (MongoDB), 9000-9001 (MinIO) via gateways 10.1.0.1 -> 10.3.0.1"
     }
-    procTier -[tcp]-> dataTier 'Worker persistence' {
-      #persistence #data
+    ProcTier -[tcp]-> DataTier 'Worker persistence' {
+      #Persistence #Data
       description "ephemeral -> 27017 (MongoDB), 9000-9001 (MinIO)"
     }
 
     // Service-level flows to derive firewall rules
-    prod-apigw-vm -[https]-> prod-frontend-vm 'Serve SPA assets' {
-      #service #routing
+    ProdApigwVm -[https]-> ProdFrontendVm 'Serve SPA assets' {
+      #Service #Routing
       description "443 -> 3000"
     }
-    prod-apigw-vm -[https]-> prod-upload-vm 'Route uploads' {
-      #service #routing
+    ProdApigwVm -[https]-> ProdUploadVm 'Route uploads' {
+      #Service #Routing
       description "443 -> 3001"
     }
-    prod-apigw-vm -[https]-> prod-retrieval-vm 'Route list/download' {
-      #service #routing
+    ProdApigwVm -[https]-> ProdRetrievalVm 'Route list/download' {
+      #Service #Routing
       description "443 -> 3002"
     }
-    prod-upload-vm -[amqp]-> prod-queue-vm 'Publish jobs' {
-      #service #messaging
+    ProdUploadVm -[amqp]-> ProdQueueVm 'Publish jobs' {
+      #Service #Messaging
       description "ephemeral -> 5672"
     }
-    prod-worker-vm -[tcp]-> prod-database-vm 'Persist metadata' {
-      #service #persistence
+    ProdWorkerVm -[tcp]-> ProdDatabaseVm 'Persist metadata' {
+      #Service #Persistence
       description "ephemeral -> 27017"
     }
-    prod-worker-vm -[tcp]-> prod-storage-vm 'Store files' {
-      #service #persistence
+    ProdWorkerVm -[tcp]-> ProdStorageVm 'Store files' {
+      #Service #Persistence
       description "ephemeral -> 9000-9001 (MinIO)"
     }
-    prod-retrieval-vm -[tcp]-> prod-database-vm 'Fetch metadata/keys' {
-      #service #persistence
+    ProdRetrievalVm -[tcp]-> ProdDatabaseVm 'Fetch metadata/keys' {
+      #Service #Persistence
       description "ephemeral -> 27017"
     }
-    prod-retrieval-vm -[tcp]-> prod-storage-vm 'Fetch objects' {
-      #service #persistence
+    ProdRetrievalVm -[tcp]-> ProdStorageVm 'Fetch objects' {
+      #Service #Persistence
       description "ephemeral -> 9000-9001 (MinIO)"
     }
 
     // Security and monitoring flows
-    monitoring -[tcp]-> prod-apigw-vm 'Scrape metrics' {
-      #monitoring #observability
+    Monitoring -[tcp]-> ProdApigwVm 'Scrape metrics' {
+      #Monitoring #Observability
       description "ephemeral -> 9090 (Prometheus)"
     }
-    monitoring -[tcp]-> prod-frontend-vm 'Scrape metrics' {
-      #monitoring #observability
+    Monitoring -[tcp]-> ProdFrontendVm 'Scrape metrics' {
+      #Monitoring #Observability
       description "ephemeral -> 9090"
     }
-    monitoring -[tcp]-> prod-upload-vm 'Scrape metrics' {
-      #monitoring #observability
+    Monitoring -[tcp]-> ProdUploadVm 'Scrape metrics' {
+      #Monitoring #Observability
       description "ephemeral -> 9090"
     }
-    monitoring -[tcp]-> prod-retrieval-vm 'Scrape metrics' {
-      #monitoring #observability
+    Monitoring -[tcp]-> ProdRetrievalVm 'Scrape metrics' {
+      #Monitoring #Observability
       description "ephemeral -> 9090"
     }
-    monitoring -[tcp]-> prod-worker-vm 'Scrape metrics' {
-      #monitoring #observability
+    Monitoring -[tcp]-> ProdWorkerVm 'Scrape metrics' {
+      #Monitoring #Observability
       description "ephemeral -> 9090"
     }
-    monitoring -[tcp]-> prod-queue-vm 'Scrape metrics' {
-      #monitoring #observability
+    Monitoring -[tcp]-> ProdQueueVm 'Scrape metrics' {
+      #Monitoring #Observability
       description "ephemeral -> 15672 (RabbitMQ mgmt)"
     }
-    monitoring -[tcp]-> prod-database-vm 'Scrape metrics' {
-      #monitoring #observability
+    Monitoring -[tcp]-> ProdDatabaseVm 'Scrape metrics' {
+      #Monitoring #Observability
       description "ephemeral -> 27017 (MongoDB metrics)"
     }
-    monitoring -[tcp]-> prod-storage-vm 'Scrape metrics' {
+    Monitoring -[tcp]-> ProdStorageVm 'Scrape metrics' {
       description "ephemeral -> 9000 (MinIO metrics)"
     }
 
     // Backup and disaster recovery flows
-    backup -[tcp]-> prod-database-vm 'Backup database' {
-      #backup #recovery
+    Backup -[tcp]-> ProdDatabaseVm 'Backup database' {
+      #Backup #Recovery
       description "ephemeral -> 27017 (MongoDB dump)"
     }
-    backup -[tcp]-> prod-storage-vm 'Backup objects' {
-      #backup #recovery
+    Backup -[tcp]-> ProdStorageVm 'Backup objects' {
+      #Backup #Recovery
       description "ephemeral -> 9000-9001 (MinIO replication)"
     }
   }
 
   // CI/CD Infrastructure
-  environment cicd 'CI/CD Pipeline Infrastructure' {
-    #cicd
+  environment Cicd 'CI/CD Pipeline Infrastructure' {
+    #Cicd
     description """
       Continuous Integration and Continuous Deployment infrastructure
       for automated testing and deployment of microservices
     """
 
-    cicdZone = zone 'CI/CD Tools Zone (VLAN 200: 10.200.0.0/24)' {
-      #pipeline
+    CicdZone = zone 'CI/CD Tools Zone (VLAN 200: 10.200.0.0/24)' {
+      #Pipeline
       description """
         Development and deployment automation tools
         
@@ -416,8 +416,8 @@ deployment {
       """
 
       // Git Repository
-      git-server-vm = vm 'git-server-vm' {
-        #shared_infra
+      GitServerVm = vm 'git-server-vm' {
+        #SharedInfra
         technology "GitLab / GitHub Enterprise"
         description """
           Git repository server for source code management
@@ -433,8 +433,8 @@ deployment {
       }
 
       // CI/CD Pipeline Server
-      cicd-pipeline-vm = vm 'cicd-pipeline-vm' {
-        #shared_infra
+      CicdPipelineVm = vm 'cicd-pipeline-vm' {
+        #SharedInfra
         technology "GitLab CI / Jenkins"
         description """
           CI/CD pipeline orchestration and build coordination
@@ -451,8 +451,8 @@ deployment {
       }
 
       // Docker Registry
-      registry-vm = vm 'registry-vm' {
-        #shared_infra
+      RegistryVm = vm 'registry-vm' {
+        #SharedInfra
         technology "Docker Registry / Harbor"
         description """
           Container image registry for built artifacts
@@ -469,8 +469,8 @@ deployment {
       }
 
       // Artifact Repository
-      artifact-repo-vm = vm 'artifact-repo-vm' {
-        #shared_infra
+      ArtifactRepoVm = vm 'artifact-repo-vm' {
+        #SharedInfra
         technology "Nexus / Artifactory"
         description """
           Build artifacts and dependency repository
@@ -487,96 +487,96 @@ deployment {
     }
 
     // Relationships: Deployments to CI/CD infrastructure
-    cicd-pipeline-vm -[https]-> git-server-vm 'Pull code' {
-      #deployment_automation
+    CicdPipelineVm -[https]-> GitServerVm 'Pull code' {
+      #DeploymentAutomation
       description "Pull microservice code from repository"
     }
 
-    cicd-pipeline-vm -[https]-> registry-vm 'Push images' {
-      #deployment_automation
+    CicdPipelineVm -[https]-> RegistryVm 'Push images' {
+      #DeploymentAutomation
       description "Push built container images to registry"
     }
 
-    cicd-pipeline-vm -[https]-> artifact-repo-vm 'Store artifacts' {
-      #deployment_automation
+    CicdPipelineVm -[https]-> ArtifactRepoVm 'Store artifacts' {
+      #DeploymentAutomation
       description "Store build artifacts and dependencies"
     }
 
     // CI/CD pipeline orchestrates deployments
-    cicd-pipeline-vm -[https]-> prod.appTier.prod-frontend-vm 'Deploy Frontend' {
-      #deployment_automation
+    CicdPipelineVm -[https]-> Prod.AppTier.ProdFrontendVm 'Deploy Frontend' {
+      #DeploymentAutomation
       description "Trigger Frontend deployment"
     }
 
-    cicd-pipeline-vm -[https]-> prod.appTier.prod-upload-vm 'Deploy Upload Service' {
-      #deployment_automation
+    CicdPipelineVm -[https]-> Prod.AppTier.ProdUploadVm 'Deploy Upload Service' {
+      #DeploymentAutomation
       description "Trigger Upload Service deployment"
     }
 
-    cicd-pipeline-vm -[https]-> prod.appTier.prod-retrieval-vm 'Deploy Retrieval Service' {
-      #deployment_automation
+    CicdPipelineVm -[https]-> Prod.AppTier.ProdRetrievalVm 'Deploy Retrieval Service' {
+      #DeploymentAutomation
       description "Trigger Retrieval Service deployment"
     }
 
-    cicd-pipeline-vm -[https]-> prod.procTier.prod-worker-vm 'Deploy Worker' {
-      #deployment_automation
+    CicdPipelineVm -[https]-> Prod.ProcTier.ProdWorkerVm 'Deploy Worker' {
+      #DeploymentAutomation
       description "Trigger Worker deployment"
     }
 
-    cicd-pipeline-vm -[https]-> prod.procTier.prod-queue-vm 'Deploy Queue' {
-      #deployment_automation
+    CicdPipelineVm -[https]-> Prod.ProcTier.ProdQueueVm 'Deploy Queue' {
+      #DeploymentAutomation
       description "Trigger RabbitMQ deployment"
     }
 
-    cicd-pipeline-vm -[https]-> prod.dataTier.prod-database-vm 'Deploy Database' {
-      #deployment_automation
+    CicdPipelineVm -[https]-> Prod.DataTier.ProdDatabaseVm 'Deploy Database' {
+      #DeploymentAutomation
       description "Trigger MongoDB deployment and schema migrations"
     }
 
     // Database schema migrations from artifact repository
-    prod.dataTier.prod-database-vm -[https]-> artifact-repo-vm 'Pull schema migrations' {
-      #deployment_automation
+    Prod.DataTier.ProdDatabaseVm -[https]-> ArtifactRepoVm 'Pull schema migrations' {
+      #DeploymentAutomation
       description "Pull database migration scripts (MongoDB migrations)"
     }
 
-    cicd-pipeline-vm -[https]-> prod.dataTier.prod-storage-vm 'Deploy Storage' {
-      #deployment_automation
+    CicdPipelineVm -[https]-> Prod.DataTier.ProdStorageVm 'Deploy Storage' {
+      #DeploymentAutomation
       description "Trigger MinIO deployment"
     }
 
     // VMs pull images from registry
-    prod.appTier.prod-frontend-vm -[https]-> registry-vm 'Pull Frontend image' {
-      #deployment_automation
+    Prod.AppTier.ProdFrontendVm -[https]-> RegistryVm 'Pull Frontend image' {
+      #DeploymentAutomation
       description "Pull container image from registry"
     }
 
-    prod.appTier.prod-upload-vm -[https]-> registry-vm 'Pull Upload image' {
-      #deployment_automation
+    Prod.AppTier.ProdUploadVm -[https]-> RegistryVm 'Pull Upload image' {
+      #DeploymentAutomation
       description "Pull container image from registry"
     }
 
-    prod.appTier.prod-retrieval-vm -[https]-> registry-vm 'Pull Retrieval image' {
-      #deployment_automation
+    Prod.AppTier.ProdRetrievalVm -[https]-> RegistryVm 'Pull Retrieval image' {
+      #DeploymentAutomation
       description "Pull container image from registry"
     }
 
-    prod.procTier.prod-worker-vm -[https]-> registry-vm 'Pull Worker image' {
-      #deployment_automation
+    Prod.ProcTier.ProdWorkerVm -[https]-> RegistryVm 'Pull Worker image' {
+      #DeploymentAutomation
       description "Pull container image from registry"
     }
 
-    prod.procTier.prod-queue-vm -[https]-> registry-vm 'Pull Queue image' {
-      #deployment_automation
+    Prod.ProcTier.ProdQueueVm -[https]-> RegistryVm 'Pull Queue image' {
+      #DeploymentAutomation
       description "Pull RabbitMQ image from registry"
     }
 
-    prod.dataTier.prod-database-vm -[https]-> registry-vm 'Pull Database image' {
-      #deployment_automation
+    Prod.DataTier.ProdDatabaseVm -[https]-> RegistryVm 'Pull Database image' {
+      #DeploymentAutomation
       description "Pull MongoDB image from registry"
     }
 
-    prod.dataTier.prod-storage-vm -[https]-> registry-vm 'Pull Storage image' {
-      #deployment_automation
+    Prod.DataTier.ProdStorageVm -[https]-> RegistryVm 'Pull Storage image' {
+      #DeploymentAutomation
       description "Pull MinIO image from registry"
     }
   }

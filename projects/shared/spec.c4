@@ -104,27 +104,27 @@ specification {
   }
 
   // Common tags with colors
-  tag legacy {
+  tag Legacy {
     color #94a3b8
   }
 
-  tag external {
+  tag External {
     color #ef4444
   }
 
-  tag cloud {
+  tag Cloud {
     color #3b82f6
   }
 
-  tag saas {
+  tag Saas {
     color #6366f1
   }
 
-  tag security {
+  tag Security {
     color #dc2626
   }
 
-  tag queue {
+  tag Queue {
     color #f59e0b
   }
 }

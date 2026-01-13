@@ -7,11 +7,11 @@ model {
 
   // The monolithic system
   vault = system 'Secure Vault System' {
-    #legacy
+    #Legacy
     
     // Monolith deployed together
     monolith = container 'Spring Boot Monolith' {
-      #legacy
+      #Legacy
       technology 'Java / Spring Boot'
       description 'Monolithic application'
       icon tech:spring
@@ -97,9 +97,9 @@ model {
 
   // External security service
   scanner = system 'VirusTotal API' {
-    #external
-    #saas
-    #security
+    #External
+    #Saas
+    #Security
     description 'SaaS Antivirus'
   }
 

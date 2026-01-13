@@ -2,12 +2,12 @@
 // Self-hosted datacenter deployment for monolithic architecture with VMs and networking
 
 deployment {
-  environment prod 'Production Datacenter - EU' {
-    #production
+  environment Prod 'Production Datacenter - EU' {
+    #Production
     
     // Network Infrastructure
-  zone dmz 'Network DMZ (VLAN 100: 10.0.0.0/24)' {
-      #networking
+  zone Dmz 'Network DMZ (VLAN 100: 10.0.0.0/24)' {
+      #Networking
       description """
         Perimeter security zone with edge services
         
@@ -19,7 +19,7 @@ deployment {
       """
       
       // Load Balancer for frontend
-      prod-lb-vm = vm 'prod-lb-vm' {
+      ProdLbVm = vm 'ProdLbVm' {
         technology "HAProxy"
           description """
             SSL termination, traffic distribution
@@ -35,8 +35,8 @@ deployment {
     }
 
   // Application Zone
-  appTier = zone 'Application Tier (VLAN 101: 10.1.0.0/24)' {
-      #infrastructure
+  AppTier = zone 'Application Tier (VLAN 101: 10.1.0.0/24)' {
+      #Infrastructure
       description """
         Monolithic application deployment zone
         
@@ -48,8 +48,8 @@ deployment {
       """
       
       // Monolith VM (Primary)
-      prod-monolith-vm01 = vm 'prod-monolith-vm01' {
-        #deployment
+      ProdMonolithVm01 = vm 'ProdMonolithVm01' {
+        #Deployment
         technology "Java 17 / Spring Boot"
           description """
             Primary monolithic application instance
@@ -70,8 +70,8 @@ deployment {
       }
 
       // Monolith VM (Secondary - hot standby)
-      prod-monolith-vm02 = vm 'prod-monolith-vm02' {
-        #deployment
+      ProdMonolithVm02 = vm 'ProdMonolithVm02' {
+        #Deployment
         technology "Java 17 / Spring Boot"
           description """
             Secondary monolithic application instance (hot standby)
@@ -94,8 +94,8 @@ deployment {
     }
 
   // Data Tier
-  dataTier = zone 'Data Tier (VLAN 102: 10.2.0.0/24)' {
-      #infrastructure
+  DataTier = zone 'Data Tier (VLAN 102: 10.2.0.0/24)' {
+      #Infrastructure
       description """
         Database and file storage zone
         
@@ -107,8 +107,8 @@ deployment {
       """
       
       // PostgreSQL Database
-      prod-database-vm = vm 'prod-database-vm' {
-        #deployment
+      ProdDatabaseVm = vm 'ProdDatabaseVm' {
+        #Deployment
         technology "PostgreSQL 14"
           description """
             Vault metadata and document records
@@ -132,8 +132,8 @@ deployment {
       }
 
       // NFS Storage
-      prod-nfs-vm = vm 'prod-nfs-vm' {
-        #deployment
+      ProdNfsVm = vm 'ProdNfsVm' {
+        #Deployment
         technology "NFS / GlusterFS"
           description """
             Encrypted file storage on shared NFS mount
@@ -159,8 +159,8 @@ deployment {
 
   // Security Zone - Intermediate security appliances
   // Security Zone - Monitoring and observability
-  secZone = zone 'Security & Monitoring (VLAN 103: 10.3.0.0/24)' {
-      #security
+  SecZone = zone 'Security & Monitoring (VLAN 103: 10.3.0.0/24)' {
+      #Security
       description """
         Monitoring, logging, and observability infrastructure
         
@@ -172,8 +172,8 @@ deployment {
       """
       
       // Monitoring VM
-      monitoring = vm 'monitoring' {
-        #shared_infra
+      Monitoring = vm 'Monitoring' {
+        #SharedInfra
         technology "Prometheus + Grafana + Splunk"
           description """
             Metrics, logs, and alerting
@@ -190,8 +190,8 @@ deployment {
     }
 
   // Infrastructure Zone - Backup and disaster recovery
-  infraZone = zone 'Backup & Disaster Recovery (VLAN 105: 10.5.0.0/24)' {
-      #infrastructure
+  InfraZone = zone 'Backup & Disaster Recovery (VLAN 105: 10.5.0.0/24)' {
+      #Infrastructure
       description """
         Backup, replication, and disaster recovery infrastructure
         
@@ -203,7 +203,7 @@ deployment {
       """
       
       // Backup VM
-      backup = vm 'backup' {
+      Backup = vm 'Backup' {
         technology "Bacula / Veeam"
           description """
             Offsite backup and disaster recovery
@@ -221,80 +221,80 @@ deployment {
     }
 
     // Inter-zone routing intents
-    dmz -[https]-> appTier 'Ingress web traffic' {
-      #ingress #routing
+    Dmz -[https]-> AppTier 'Ingress web traffic' {
+      #Ingress #Routing
       description "ephemeral (443) -> 8080 via gateways 10.0.0.1 -> 10.1.0.1"
     }
-    appTier -[tcp]-> dataTier 'Metadata and file IO' {
-      #persistence #data
+    AppTier -[tcp]-> DataTier 'Metadata and file IO' {
+      #Persistence #Data
       description "ephemeral -> 5432 (PostgreSQL), 2049 (NFS) via gateways 10.1.0.1 -> 10.2.0.1"
     }
 
     // Service-level flows to derive firewall rules
-    prod-lb-vm -[https]-> prod-monolith-vm01 'Route primary' {
-      #service #routing
+    ProdLbVm -[https]-> ProdMonolithVm01 'Route primary' {
+      #Service #Routing
       description "443 -> 8080"
     }
-    prod-lb-vm -[https]-> prod-monolith-vm02 'Route standby' {
-      #service #routing
+    ProdLbVm -[https]-> ProdMonolithVm02 'Route standby' {
+      #Service #Routing
       description "443 -> 8080"
     }
-    prod-monolith-vm01 -[tcp]-> prod-database-vm 'Persist metadata' {
-      #service #persistence
+    ProdMonolithVm01 -[tcp]-> ProdDatabaseVm 'Persist metadata' {
+      #Service #Persistence
       description "ephemeral -> 5432"
     }
-    prod-monolith-vm02 -[tcp]-> prod-database-vm 'Persist metadata (failover)' {
-      #service #persistence
+    ProdMonolithVm02 -[tcp]-> ProdDatabaseVm 'Persist metadata (failover)' {
+      #Service #Persistence
       description "ephemeral -> 5432"
     }
-    prod-monolith-vm01 -[nfs]-> prod-nfs-vm 'Store files' {
-      #service #persistence
+    ProdMonolithVm01 -[nfs]-> ProdNfsVm 'Store files' {
+      #Service #Persistence
       description "ephemeral -> 2049 (NFS)"
     }
-    prod-monolith-vm02 -[nfs]-> prod-nfs-vm 'Store files (standby)' {
+    ProdMonolithVm02 -[nfs]-> ProdNfsVm 'Store files (standby)' {
       description "ephemeral -> 2049 (NFS)"
     }
 
     // Security and monitoring flows
-    monitoring -[tcp]-> prod-lb-vm 'Scrape metrics' {
-      #monitoring #observability
+    Monitoring -[tcp]-> ProdLbVm 'Scrape metrics' {
+      #Monitoring #Observability
       description "ephemeral -> 9000 (HAProxy stats)"
     }
-    monitoring -[tcp]-> prod-monolith-vm01 'Scrape metrics' {
-      #monitoring #observability
+    Monitoring -[tcp]-> ProdMonolithVm01 'Scrape metrics' {
+      #Monitoring #Observability
       description "ephemeral -> 8080 (actuator)"
     }
-    monitoring -[tcp]-> prod-monolith-vm02 'Scrape metrics' {
-      #monitoring #observability
+    Monitoring -[tcp]-> ProdMonolithVm02 'Scrape metrics' {
+      #Monitoring #Observability
       description "ephemeral -> 8080 (actuator)"
     }
-    monitoring -[tcp]-> prod-database-vm 'Scrape metrics' {
-      #monitoring #observability
+    Monitoring -[tcp]-> ProdDatabaseVm 'Scrape metrics' {
+      #Monitoring #Observability
       description "ephemeral -> 5432 (PostgreSQL stats)"
     }
-    monitoring -[tcp]-> prod-nfs-vm 'Scrape metrics' {
-      #monitoring #observability
+    Monitoring -[tcp]-> ProdNfsVm 'Scrape metrics' {
+      #Monitoring #Observability
       description "ephemeral -> 2049 (NFS stats)"
     }
-    backup -[tcp]-> prod-database-vm 'Backup database' {
-      #backup #recovery
+    Backup -[tcp]-> ProdDatabaseVm 'Backup database' {
+      #Backup #Recovery
       description "ephemeral -> 5432"
     }
-    backup -[nfs]-> prod-nfs-vm 'Backup files' {
+    Backup -[nfs]-> ProdNfsVm 'Backup files' {
       description "ephemeral -> 2049 (NFS)"
     }
   }
 
   // CI/CD Infrastructure
-  environment cicd 'CI/CD Pipeline Infrastructure' {
-    #cicd
+  environment Cicd 'CI/CD Pipeline Infrastructure' {
+    #Cicd
     description """
       Continuous Integration and Continuous Deployment infrastructure
       for automated testing and deployment of the monolithic application
     """
 
-    cicdZone = zone 'CI/CD Tools Zone (VLAN 200: 10.200.0.0/24)' {
-      #pipeline
+    CicdZone = zone 'CI/CD Tools Zone (VLAN 200: 10.200.0.0/24)' {
+      #Pipeline
       description """
         Development and deployment automation tools
         
@@ -306,8 +306,8 @@ deployment {
       """
 
       // Git Repository
-      git-server-vm = vm 'git-server-vm' {
-        #shared_infra
+      GitServerVm = vm 'GitServerVm' {
+        #SharedInfra
         technology "GitLab / GitHub Enterprise"
         description """
           Git repository server for source code management
@@ -323,8 +323,8 @@ deployment {
       }
 
       // CI/CD Pipeline Server
-      cicd-pipeline-vm = vm 'cicd-pipeline-vm' {
-        #shared_infra
+      CicdPipelineVm = vm 'CicdPipelineVm' {
+        #SharedInfra
         technology "GitLab CI / Jenkins"
         description """
           CI/CD pipeline orchestration and build coordination
@@ -341,8 +341,8 @@ deployment {
       }
 
       // Docker Registry
-      registry-vm = vm 'registry-vm' {
-        #shared_infra
+      RegistryVm = vm 'RegistryVm' {
+        #SharedInfra
         technology "Docker Registry / Harbor"
         description """
           Container image registry for built artifacts
@@ -359,8 +359,8 @@ deployment {
       }
 
       // Artifact Repository
-      artifact-repo-vm = vm 'artifact-repo-vm' {
-        #shared_infra
+      ArtifactRepoVm = vm 'ArtifactRepoVm' {
+        #SharedInfra
         technology "Nexus / Artifactory"
         description """
           Build artifacts and dependency repository
@@ -377,61 +377,61 @@ deployment {
     }
 
     // Relationships: Deployments to CI/CD infrastructure
-    cicd-pipeline-vm -[https]-> git-server-vm 'Pull code' {
-      #deployment_automation
+    CicdPipelineVm -[https]-> GitServerVm 'Pull code' {
+      #DeploymentAutomation
       description "Pull monolith code from repository"
     }
 
-    cicd-pipeline-vm -[https]-> artifact-repo-vm 'Store artifacts' {
-      #deployment_automation
+    CicdPipelineVm -[https]-> ArtifactRepoVm 'Store artifacts' {
+      #DeploymentAutomation
       description "Store compiled binaries and artifacts"
     }
 
     // CI/CD pipeline orchestrates deployments
-    cicd-pipeline-vm -[https]-> prod.appTier.prod-monolith-vm01 'Deploy Monolith (Primary)' {
-      #deployment_automation
+    CicdPipelineVm -[https]-> Prod.AppTier.ProdMonolithVm01 'Deploy Monolith (Primary)' {
+      #DeploymentAutomation
       description "Trigger Monolith deployment to primary instance"
     }
 
-    cicd-pipeline-vm -[https]-> prod.appTier.prod-monolith-vm02 'Deploy Monolith (Secondary)' {
-      #deployment_automation
+    CicdPipelineVm -[https]-> Prod.AppTier.ProdMonolithVm02 'Deploy Monolith (Secondary)' {
+      #DeploymentAutomation
       description "Trigger Monolith deployment to secondary instance"
     }
 
-    cicd-pipeline-vm -[https]-> prod.dataTier.prod-database-vm 'Deploy Database' {
-      #deployment_automation
+    CicdPipelineVm -[https]-> Prod.DataTier.ProdDatabaseVm 'Deploy Database' {
+      #DeploymentAutomation
       description "Trigger PostgreSQL deployment and schema migrations"
     }
 
     // Database schema migrations from artifact repository
-    prod.dataTier.prod-database-vm -[https]-> artifact-repo-vm 'Pull schema migrations' {
-      #deployment_automation
+    Prod.DataTier.ProdDatabaseVm -[https]-> ArtifactRepoVm 'Pull schema migrations' {
+      #DeploymentAutomation
       description "Pull database migration scripts (Flyway/Liquibase)"
     }
 
-    cicd-pipeline-vm -[https]-> prod.dataTier.prod-nfs-vm 'Deploy Storage' {
-      #deployment_automation
+    CicdPipelineVm -[https]-> Prod.DataTier.ProdNfsVm 'Deploy Storage' {
+      #DeploymentAutomation
       description "Trigger NFS storage deployment"
     }
 
     // VMs pull compiled artifacts from repository
-    prod.appTier.prod-monolith-vm01 -[https]-> artifact-repo-vm 'Pull binaries' {
-      #deployment_automation
+    Prod.AppTier.ProdMonolithVm01 -[https]-> ArtifactRepoVm 'Pull binaries' {
+      #DeploymentAutomation
       description "Pull compiled Monolith binary"
     }
 
-    prod.appTier.prod-monolith-vm02 -[https]-> artifact-repo-vm 'Pull binaries' {
-      #deployment_automation
+    Prod.AppTier.ProdMonolithVm02 -[https]-> ArtifactRepoVm 'Pull binaries' {
+      #DeploymentAutomation
       description "Pull compiled Monolith binary"
     }
 
-    prod.dataTier.prod-database-vm -[https]-> artifact-repo-vm 'Pull binaries' {
-      #deployment_automation
+    Prod.DataTier.ProdDatabaseVm -[https]-> ArtifactRepoVm 'Pull binaries' {
+      #DeploymentAutomation
       description "Pull PostgreSQL binary"
     }
 
-    prod.dataTier.prod-nfs-vm -[https]-> artifact-repo-vm 'Pull binaries' {
-      #deployment_automation
+    Prod.DataTier.ProdNfsVm -[https]-> ArtifactRepoVm 'Pull binaries' {
+      #DeploymentAutomation
       description "Pull NFS storage binary"
     }
   }
