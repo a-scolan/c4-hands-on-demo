@@ -98,6 +98,64 @@ c4_hands-on-demo/
 │       ├── spec.c4
 │       ├── model.c4
 │       ├── views.c4
-│       └── sequences.c4  # Dynamic sequence views
+│       ├── sequences.c4  # Dynamic sequence views
+│       ├── deployment.c4 # Infrastructure deployment model
+│       └── deployment-views.c4 # Deployment views
+├── shared/               # Shared specifications
+│   ├── spec.c4           # Base element kinds, relationships, tags
+│   └── deployment-spec.c4 # Deployment-specific element kinds
 └── c4-demo.code-workspace
 ```
+
+## 📚 LikeC4 Code Structure & Organization
+### File Organization
+
+Each project has specialized files following [LikeC4 DSL structure](https://likec4.dev/dsl/):
+
+| File | Purpose | Learn More |
+|------|---------|---|
+| **spec.c4** | Element & relationship kinds, colors, tags | [DSL Specs](https://likec4.dev/dsl/) |
+| **model.c4** | Logical architecture - systems, containers, components | [Model](https://likec4.dev/dsl/model) |
+| **views.c4** | C1/C2/C3 visualizations of the model | [Views](https://likec4.dev/dsl/views) |
+| **deployment.c4** | Physical infrastructure - environments, zones, VMs, apps | [Deployment](https://likec4.dev/dsl/deployment) |
+| **deployment-views.c4** | Infrastructure topology views | [Deployment Views](https://likec4.dev/dsl/deployment/views) |
+| **sequences.c4** | Dynamic interaction flows | [Sequences](https://likec4.dev/dsl/dynamic) |
+
+**Key Principle:** Model = Business logic (deployment-agnostic) | Deployment = Physical infrastructure
+
+### Naming Conventions
+
+| Type | Pattern | Examples |
+|------|---------|----------|
+| Systems/Containers | PascalCase | `SecureVault`, `APIGateway` |
+| Deployment nodes | snake_case | `api_gateway`, `app_tier` |
+| FQN references | dots | `vault.api`, `prod.appTier.frontend_vm` |
+| Tags | kebab-case | `#external`, `#legacy` |
+
+[LikeC4 naming docs](https://likec4.dev/dsl/model#element-definitions)
+
+### Relationship Types
+
+| In model | In deployment | Examples |
+|----------|---------------|----------|
+| `uses`, `calls` | `http`, `https` | `vault.api -> vault.jobs` |
+| `async`, `reads`, `writes` | `tcp`, `nfs`, `amqp` | `monitoring -[tcp]-> db_vm 'Scrape'` |
+
+[LikeC4 relationships](https://likec4.dev/dsl/relationships)
+
+### Best Practices Shown
+
+✅ **Separation of concerns** - Logical and physical architectures separate  
+✅ **Proper hierarchies** - Systems → containers → components; VMs → apps  
+✅ **Shared specs** - Common definitions prevent duplication  
+✅ **Clear relationships** - All connections have labels, kinds, and ports  
+✅ **Consistent styling** - Colors, tags, and technologies documented  
+
+### Quick Tips
+
+- **Models are deployment-agnostic** - Same app can run on different infrastructure
+- **Apps reference containers via `instanceOf`** - Links logical to physical
+- **Shared specs prevent duplication** - Both projects inherit common definitions
+- **Scoped wildcards in views** - Use `-> zone.*` and `zone.*->` for related elements only
+
+For detailed syntax and examples, visit [LikeC4 Documentation](https://likec4.dev/dsl)

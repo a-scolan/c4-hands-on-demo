@@ -25,46 +25,21 @@ specification {
     notation 'Virtual Machine'
   }
 
+  deploymentNode app {
+    notation 'Application Instance'
+    style {
+      color deploy-purple
+    }
+  }
+
   deploymentNode container
 
-  // Infrastructure-specific elements (complementary to spec.c4)
-  element loadbalancer {
-    notation "Load Balancer"
-    style {
-      color lb-blue
-    }
-  }
-
-  element firewall {
-    notation "Firewall"
-    style {
-      color fw-red
-    }
-  }
-
-  element networkdevice {
-    notation "Network Device"
-    style {
-      color net-green
-    }
-  }
-
-  // Deployment-specific relationship types
-  relationship deploys {
-    line solid
-  }
-
-  relationship routes {
-    line solid
-  }
-
-  relationship protects {
-    line solid
-  }
-
-  relationship connects {
-    line solid
-  }
+  // Deployment relationship kinds
+  relationship http
+  relationship https
+  relationship tcp
+  relationship nfs
+  relationship amqp
 
   // Deployment-specific tags
   tag production {

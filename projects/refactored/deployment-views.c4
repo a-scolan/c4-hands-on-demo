@@ -1,46 +1,102 @@
 // --- DEPLOYMENT VIEWS ---
 // Infrastructure and networking diagrams for refactored microservices
 
-views {
-  deployment view d1_network_overview {
-    title "D1 / Network Overview"
-    description "Physical datacenter deployment with network zones and VLANs"
+views 'Deployment' {
+  
+  deployment view overview {
+    title 'Network Overview'
+    description 'Physical datacenter deployment with network zones, VLANs, and inter-zone connectivity'
     
-    include prod.**
+    include 
+      prod,
+      prod.dmz,
+      prod.dmz.api_gateway,
+      prod.appTier,
+      prod.appTier.frontend_vm,
+      prod.appTier.upload_vm,
+      prod.appTier.document_vm,
+      prod.appTier.download_vm,
+      prod.procTier,
+      prod.procTier.worker_vm,
+      prod.procTier.queue_vm,
+      prod.dataTier,
+      prod.dataTier.db_vm,
+      prod.dataTier.storage_vm,
+      prod.secZone,
+      prod.secZone.firewall,
+      prod.secZone.monitoring,
+      *
   }
 
-  deployment view d2_application_tier {
-    title "D2 / Application Tier"
-    description "Microservices deployed across VM instances"
+  deployment view app_tier {
+    title 'Application Tier'
+    description 'Microservices deployed across VM instances with external interactions'
     
-    include prod.appTier.**
+    include
+      prod.appTier,
+      prod.appTier.frontend_vm,
+      prod.appTier.upload_vm,
+      prod.appTier.document_vm,
+      prod.appTier.download_vm,
+      prod.dmz.api_gateway,
+      prod.procTier.queue_vm,
+      prod.dataTier.db_vm,
+      prod.dataTier.storage_vm,
+      prod.secZone.monitoring,
+      -> prod.appTier.*,
+      prod.appTier.* ->
   }
 
-  deployment view d3_processing_tier {
-    title "D3 / Processing Tier"
-    description "Async job processing with RabbitMQ and worker nodes"
+  deployment view proc_tier {
+    title 'Processing Tier'
+    description 'Async job processing with RabbitMQ and worker nodes, showing connections to app and data tiers'
     
-    include prod.procTier.**
+    include
+      prod.procTier,
+      prod.procTier.worker_vm,
+      prod.procTier.queue_vm,
+      prod.appTier.upload_vm,
+      prod.dataTier.db_vm,
+      prod.dataTier.storage_vm,
+      prod.secZone.monitoring,
+      -> prod.procTier.*,
+      prod.procTier.* ->
   }
 
-  deployment view d4_data_tier {
-    title "D4 / Data Tier"
-    description "Database and object storage infrastructure"
+  deployment view data_tier {
+    title 'Data Tier'
+    description 'Database and object storage infrastructure with service dependencies'
     
-    include prod.dataTier.**
+    include
+      prod.dataTier,
+      prod.dataTier.db_vm,
+      prod.dataTier.storage_vm,
+      prod.appTier.document_vm,
+      prod.appTier.download_vm,
+      prod.procTier.worker_vm,
+      prod.secZone.monitoring,
+      -> prod.dataTier.*,
+      prod.dataTier.* ->
   }
 
-  deployment view d5_security {
-    title "D5 / Security & Monitoring"
-    description "Firewall, monitoring stack, and security infrastructure"
+  deployment view security {
+    title 'Security & Monitoring'
+    description 'Firewall, monitoring stack, and security infrastructure'
     
-    include prod.secZone.**
-  }
-
-  deployment view d_complete {
-    title "D / Complete Datacenter Deployment"
-    description "Full production datacenter infrastructure for refactored system"
-    
-    include prod.**
+    include
+      prod.secZone,
+      prod.secZone.firewall,
+      prod.secZone.monitoring,
+      prod.dmz.api_gateway,
+      prod.appTier.frontend_vm,
+      prod.appTier.upload_vm,
+      prod.appTier.document_vm,
+      prod.appTier.download_vm,
+      prod.procTier.worker_vm,
+      prod.procTier.queue_vm,
+      prod.dataTier.db_vm,
+      prod.dataTier.storage_vm,
+      -> prod.secZone.*,
+      prod.secZone.* ->
   }
 }

@@ -63,6 +63,21 @@ specification {
     }
   }
 
+  // Infrastructure elements
+  element loadbalancer {
+    notation "Load Balancer"
+    style {
+      color blue
+    }
+  }
+
+  element firewall {
+    notation "Firewall"
+    style {
+      color red
+    }
+  }
+
   // Relationship types
   relationship uses {
     line solid

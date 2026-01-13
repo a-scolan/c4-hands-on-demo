@@ -1,39 +1,76 @@
 // --- DEPLOYMENT VIEWS ---
 // Infrastructure and networking diagrams for legacy monolithic architecture
 
-views {
-  deployment view d1_network_overview {
-    title "D1 / Network Overview"
-    description "Physical datacenter deployment with network zones and VLANs"
+views 'Deployment' {
+  
+  deployment view overview {
+    title 'Network Overview'
+    description 'Physical datacenter deployment with network zones, VLANs, and inter-zone connectivity'
     
-    include prod.**
+    include
+      prod,
+      prod.dmz,
+      prod.dmz.lb,
+      prod.appTier,
+      prod.appTier.monolith_primary,
+      prod.appTier.monolith_secondary,
+      prod.dataTier,
+      prod.dataTier.db_vm,
+      prod.dataTier.nfs_vm,
+      prod.secZone,
+      prod.secZone.firewall,
+      prod.secZone.monitoring,
+      prod.secZone.backup,
+      *
   }
 
-  deployment view d2_application_tier {
-    title "D2 / Application Tier"
-    description "Monolithic application instances with load balancing and failover"
+  deployment view app_tier {
+    title 'Application Tier'
+    description 'Monolithic application instances with load balancing, failover, and data tier connections'
     
-    include prod.appTier.**
+    include
+      prod.appTier,
+      prod.appTier.monolith_primary,
+      prod.appTier.monolith_secondary,
+      prod.dmz.lb,
+      prod.dataTier.db_vm,
+      prod.dataTier.nfs_vm,
+      prod.secZone.monitoring,
+      -> prod.appTier.*,
+      prod.appTier.* ->
   }
 
-  deployment view d3_data_tier {
-    title "D3 / Data Tier"
-    description "PostgreSQL database cluster and NFS storage infrastructure"
+  deployment view data_tier {
+    title 'Data Tier'
+    description 'PostgreSQL database cluster and NFS storage infrastructure with application dependencies'
     
-    include prod.dataTier.**
+    include
+      prod.dataTier,
+      prod.dataTier.db_vm,
+      prod.dataTier.nfs_vm,
+      prod.appTier.monolith_primary,
+      prod.appTier.monolith_secondary,
+      prod.secZone.monitoring,
+      prod.secZone.backup,
+      -> prod.dataTier.*,
+      prod.dataTier.* ->
   }
 
-  deployment view d4_security {
-    title "D4 / Security & Monitoring"
-    description "Firewall, monitoring, backup, and disaster recovery infrastructure"
+  deployment view security {
+    title 'Security & Monitoring'
+    description 'Firewall, monitoring, backup, and disaster recovery infrastructure'
     
-    include prod.secZone.**
-  }
-
-  deployment view d_complete {
-    title "D / Complete Datacenter Deployment"
-    description "Full production datacenter infrastructure for legacy monolithic system"
-    
-    include prod.**
+    include
+      prod.secZone,
+      prod.secZone.firewall,
+      prod.secZone.monitoring,
+      prod.secZone.backup,
+      prod.dmz.lb,
+      prod.appTier.monolith_primary,
+      prod.appTier.monolith_secondary,
+      prod.dataTier.db_vm,
+      prod.dataTier.nfs_vm,
+      -> prod.secZone.*,
+      prod.secZone.* ->
   }
 }

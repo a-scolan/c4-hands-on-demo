@@ -6,145 +6,276 @@ deployment {
     #production
     
     // Network Infrastructure
-    zone dmz 'Network DMZ' {
+  zone dmz 'Network DMZ (VLAN 100: 10.0.0.0/24)' {
       #networking
-      description "Perimeter security zone"
+      description """
+        Perimeter security zone
+        
+        | Property | Value |
+        |:---------|:------|
+        | VLAN | 100 |
+        | Network | 10.0.0.0/24 |
+        | Gateway | 10.0.0.1 |
+      """
       
       // Load Balancer for frontend
       lb = vm 'Load Balancer' {
         technology "HAProxy"
-        description "SSL termination, traffic distribution"
-        metadata {
-          os "CentOS 8"
-          cpu "4 vCPU"
-          ram "8 GB"
-          network "10.0.0.10/24"
-        }
+          description """
+            SSL termination, traffic distribution
+          
+            | Property | Value |
+            |:---------|:------|
+            | eth0 | 10.0.0.10/24 |
+            | OS | CentOS 8 |
+            | CPU | 4 vCPU |
+            | RAM | 8 GB |
+          """
       }
     }
 
-    // Application Zone
-    appTier = zone 'Application Tier' {
+  // Application Zone
+  appTier = zone 'Application Tier (VLAN 101: 10.1.0.0/24)' {
       #infrastructure
-      description "Monolithic application deployment zone"
+      description """
+        Monolithic application deployment zone
+        
+        | Property | Value |
+        |:---------|:------|
+        | VLAN | 101 |
+        | Network | 10.1.0.0/24 |
+        | Gateway | 10.1.0.1 |
+      """
       
       // Monolith VM (Primary)
       monolith_primary = vm 'Monolith Primary' {
         technology "Java 17 / Spring Boot"
-        description "Primary monolithic application instance"
-        metadata {
-          os "CentOS 8"
-          cpu "8 vCPU"
-          ram "16 GB"
-          network "10.1.0.11/24"
-          port "8080"
-          jvm_heap "12 GB"
+          description """
+            Primary monolithic application instance
+          
+            | Property | Value |
+            |:---------|:------|
+            | eth0 | 10.1.0.11/24 |
+            | OS | CentOS 8 |
+            | CPU | 8 vCPU |
+            | RAM | 16 GB |
+            | Port | 8080 |
+            | JVM Heap | 12 GB |
+          """
+        
+        monolithApp = app 'Monolith App (Primary)' {
+          instanceOf vault.monolith
         }
-        instanceOf vault.monolith
       }
 
-      // Monolith VM (Secondary - for HA)
+      // Monolith VM (Secondary - hot standby)
       monolith_secondary = vm 'Monolith Secondary' {
         technology "Java 17 / Spring Boot"
-        description "Secondary monolithic application instance (failover)"
-        metadata {
-          os "CentOS 8"
-          cpu "8 vCPU"
-          ram "16 GB"
-          network "10.1.0.12/24"
-          port "8080"
-          jvm_heap "12 GB"
-          mode "hot-standby"
+          description """
+            Secondary monolithic application instance (hot standby)
+          
+            | Property | Value |
+            |:---------|:------|
+            | eth0 | 10.1.0.12/24 |
+            | OS | CentOS 8 |
+            | CPU | 8 vCPU |
+            | RAM | 16 GB |
+            | Port | 8080 |
+            | JVM Heap | 12 GB |
+            | Mode | hot-standby |
+          """
+        
+        monolithApp = app 'Monolith App (Secondary)' {
+          instanceOf vault.monolith
         }
-        instanceOf vault.monolith
       }
     }
 
-    // Data Tier
-    dataTier = zone 'Data Tier' {
+  // Data Tier
+  dataTier = zone 'Data Tier (VLAN 102: 10.2.0.0/24)' {
       #infrastructure
-      description "Database and file storage zone"
+      description """
+        Database and file storage zone
+        
+        | Property | Value |
+        |:---------|:------|
+        | VLAN | 102 |
+        | Network | 10.2.0.0/24 |
+        | Gateway | 10.2.0.1 |
+      """
       
       // PostgreSQL Database
       db_vm = vm 'Relational Database' {
         technology "PostgreSQL 14"
-        description "Vault metadata and document records"
-        metadata {
-          os "CentOS 8"
-          cpu "16 vCPU"
-          ram "64 GB"
-          network "10.3.0.17/24"
-          port "5432"
-          disk "2 TB SSD"
-          replication "primary + 1 standby"
-          encryption "at-rest enabled"
-          backup "daily incremental"
+          description """
+            Vault metadata and document records
+          
+            | Property | Value |
+            |:---------|:------|
+            | eth0 | 10.2.0.17/24 |
+            | OS | CentOS 8 |
+            | CPU | 16 vCPU |
+            | RAM | 64 GB |
+            | Port | 5432 |
+            | Disk | 2 TB SSD |
+            | Replication | primary + 1 standby |
+            | Encryption | at-rest enabled |
+            | Backup | daily incremental |
+          """
+        
+        dbApp = app 'PostgreSQL Instance' {
+          instanceOf vault.db
         }
-        instanceOf vault.db
       }
 
       // NFS Storage
       nfs_vm = vm 'Network Storage (NFS)' {
         technology "NFS / GlusterFS"
-        description "Encrypted file storage on shared NFS mount"
-        metadata {
-          os "CentOS 8"
-          cpu "8 vCPU"
-          ram "32 GB"
-          network "10.3.0.18/24"
-          disk "500 TB HDD"
-          mount_point "/mnt/data"
-          replication "3-way mirroring"
-          encryption "at-rest enabled"
-          snapshots "hourly"
+          description """
+            Encrypted file storage on shared NFS mount
+          
+            | Property | Value |
+            |:---------|:------|
+            | eth0 | 10.2.0.18/24 |
+            | OS | CentOS 8 |
+            | CPU | 8 vCPU |
+            | RAM | 32 GB |
+            | Disk | 500 TB HDD |
+            | Mount Point | /mnt/data |
+            | Replication | 3-way mirroring |
+            | Encryption | at-rest enabled |
+            | Snapshots | hourly |
+          """
+        
+        nfsApp = app 'NFS Service' {
+          instanceOf vault.disk
         }
-        instanceOf vault.disk
       }
     }
 
-    // Security Zone
-    secZone = zone 'Security & Monitoring' {
+  // Security Zone
+  secZone = zone 'Security & Monitoring (VLAN 103: 10.3.0.0/24)' {
       #security
-      description "Firewall, monitoring, and backup"
+      description """
+        Firewall, monitoring, and backup
+        
+        | Property | Value |
+        |:---------|:------|
+        | VLAN | 103 |
+        | Network | 10.3.0.0/24 |
+        | Gateway | 10.3.0.1 |
+      """
       
       // Firewall
       firewall = vm 'Firewall / WAF' {
         technology "pfSense / ModSecurity"
-        description "Stateful firewall and DDoS protection"
-        metadata {
-          os "FreeBSD"
-          cpu "8 vCPU"
-          ram "16 GB"
-          network "10.0.0.1/24"
-        }
+          description """
+            Stateful firewall and DDoS protection
+          
+            | Property | Value |
+            |:---------|:------|
+            | eth0 | 10.3.0.1/24 |
+            | OS | FreeBSD |
+            | CPU | 8 vCPU |
+            | RAM | 16 GB |
+          """
       }
 
       // Monitoring VM
       monitoring = vm 'Monitoring Stack' {
         technology "Prometheus + Grafana + Splunk"
-        description "Metrics, logs, and alerting"
-        metadata {
-          os "CentOS 8"
-          cpu "4 vCPU"
-          ram "16 GB"
-          network "10.4.0.19/24"
-          disk "2 TB SSD"
-        }
+          description """
+            Metrics, logs, and alerting
+          
+            | Property | Value |
+            |:---------|:------|
+            | eth0 | 10.3.0.19/24 |
+            | OS | CentOS 8 |
+            | CPU | 4 vCPU |
+            | RAM | 16 GB |
+            | Disk | 2 TB SSD |
+          """
       }
 
       // Backup VM
       backup = vm 'Backup Storage' {
         technology "Bacula / Veeam"
-        description "Offsite backup and disaster recovery"
-        metadata {
-          os "CentOS 8"
-          cpu "4 vCPU"
-          ram "8 GB"
-          network "10.4.0.20/24"
-          disk "10 TB HDD"
-          retention "30 days"
-        }
+          description """
+            Offsite backup and disaster recovery
+          
+            | Property | Value |
+            |:---------|:------|
+            | eth0 | 10.3.0.20/24 |
+            | OS | CentOS 8 |
+            | CPU | 4 vCPU |
+            | RAM | 8 GB |
+            | Disk | 10 TB HDD |
+            | Retention | 30 days |
+          """
       }
+    }
+
+    // Inter-zone routing and firewall intents (surface ports and gateways)
+    dmz -[https]-> appTier 'Ingress web traffic' {
+      description "ephemeral (443) -> 8080 via gateways 10.0.0.1 -> 10.1.0.1"
+    }
+    firewall -[tcp]-> dmz 'Filter ingress traffic' {
+      description "443 (HTTPS ingress)"
+    }
+    firewall -[tcp]-> appTier 'Filter app tier traffic' {
+      description "ephemeral -> 8080 (monolith)"
+    }
+    firewall -[tcp]-> dataTier 'Filter data tier traffic' {
+      description "ephemeral -> 5432 (PostgreSQL), 2049 (NFS)"
+    }
+    appTier -[tcp]-> dataTier 'Metadata and file IO' {
+      description "ephemeral -> 5432 (PostgreSQL), 2049 (NFS) via gateways 10.1.0.1 -> 10.2.0.1"
+    }
+
+    // Service-level flows to derive firewall rules
+    lb -[https]-> monolith_primary 'Route primary' {
+      description "443 -> 8080"
+    }
+    lb -[https]-> monolith_secondary 'Route standby' {
+      description "443 -> 8080"
+    }
+    monolith_primary -[tcp]-> db_vm 'Persist metadata' {
+      description "ephemeral -> 5432"
+    }
+    monolith_secondary -[tcp]-> db_vm 'Persist metadata (failover)' {
+      description "ephemeral -> 5432"
+    }
+    monolith_primary -[nfs]-> nfs_vm 'Store files' {
+      description "ephemeral -> 2049 (NFS)"
+    }
+    monolith_secondary -[nfs]-> nfs_vm 'Store files (standby)' {
+      description "ephemeral -> 2049 (NFS)"
+    }
+
+    // Security and monitoring flows
+    monitoring -[tcp]-> lb 'Scrape metrics' {
+      description "ephemeral -> 9000 (HAProxy stats)"
+    }
+    monitoring -[tcp]-> monolith_primary 'Scrape metrics' {
+      description "ephemeral -> 8080 (actuator)"
+    }
+    monitoring -[tcp]-> monolith_secondary 'Scrape metrics' {
+      description "ephemeral -> 8080 (actuator)"
+    }
+    monitoring -[tcp]-> db_vm 'Scrape metrics' {
+      description "ephemeral -> 5432 (PostgreSQL stats)"
+    }
+    monitoring -[tcp]-> nfs_vm 'Scrape metrics' {
+      description "ephemeral -> 2049 (NFS stats)"
+    }
+    monitoring -[tcp]-> firewall 'Scrape firewall logs' {
+      description "ephemeral -> 8834 (pfSense management)"
+    }
+    backup -[tcp]-> db_vm 'Backup database' {
+      description "ephemeral -> 5432"
+    }
+    backup -[nfs]-> nfs_vm 'Backup files' {
+      description "ephemeral -> 2049 (NFS)"
     }
   }
 }
