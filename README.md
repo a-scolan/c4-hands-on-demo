@@ -89,19 +89,6 @@ cd projects/refactored
 npx likec4 start
 ```
 
-### VS Code Multi-Folder Workspace
-
-The workspace file `c4-demo.code-workspace` configures VS Code to treat each project as a separate folder:
-
-```bash
-code c4-demo.code-workspace
-```
-
-This provides:
-- IntelliSense for each project's LikeC4 files
-- Separate workspace configurations
-- Side-by-side editing of legacy and refactored architectures
-
 ## 📝 Important Notes
 
 - Each project has a unique `name` in its `likec4.config.json`
@@ -434,27 +421,3 @@ description """
 ### 📚 Learn More
 
 For detailed syntax and examples, visit [LikeC4 Documentation](https://likec4.dev/dsl)
-## 📝 Changelog
-
-### 2024-12-XX - Major Refactoring: Unified PascalCase Naming
-
-**Comprehensive naming convention standardization across entire codebase**
-
-- ✅ **380+ replacements** across 8 core files
-- ✅ **All tags** converted to PascalCase: `#Production`, `#Infrastructure`, `#Deployment`, etc.
-- ✅ **All zones** converted to PascalCase: `Dmz`, `AppTier`, `DataTier`, `SecZone`, `InfraZone`, `CicdZone`
-- ✅ **All VMs** converted to PascalCase: `ProdApigwVm`, `ProdFrontendVm`, `ProdUploadVm`, etc.
-- ✅ **All environments** converted to PascalCase: `Prod`, `Cicd`
-- ✅ **All FQN paths** updated: `Prod.AppTier.ProdFrontendVm`, `Cicd.CicdZone.GitServerVm`
-- ✅ **All deployment views** updated with PascalCase filters
-- ✅ **Zero compilation errors** - All files validated successfully
-
-**Impact:** 
-- Eliminated mixed naming conventions (previously: PascalCase, snake_case, kebab-case)
-- Improved code readability and maintainability
-- Consistent experience across all LikeC4 elements
-
-**Files updated:**
-- `shared/spec.c4` & `deployment-spec.c4` (19 tags)
-- `legacy/model.c4`, `deployment.c4`, `deployment-views.c4`
-- `refactored/model.c4`, `deployment.c4`, `deployment-views.c4`
