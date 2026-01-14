@@ -6,6 +6,7 @@ views {
   view c1_context {
     title 'C1 / Secure Vault System'
     include customer
+    include browser
     include vault
     include minio
     include scanner
@@ -24,6 +25,7 @@ views {
   view c2_container {
     title 'C2 / Vault System Internals'
     include customer
+    include browser
     include vault.*
     include minio
     include scanner
@@ -42,6 +44,7 @@ views {
   view c3_frontend {
     title 'C3 / Frontend'
     include customer
+    include browser
     include vault.*
     include vault.frontend.*
     include minio

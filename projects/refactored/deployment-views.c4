@@ -3,13 +3,33 @@
 
 views 'Deployment' {
   
+  deployment view user_access {
+    title 'User Access'
+    description 'End-user browser loads SPA from web server, then calls API Gateway'
+    
+    include
+      UserBrowser,
+      UserBrowser.**,
+      Prod.Dmz,
+      Prod.Dmz.**  where tag is #Vm,
+      Prod.Dmz.ProdWebServerVm,
+      UserBrowser ->,
+  }
+
   deployment view overview {
     title 'Network Overview'
     description 'Physical datacenter deployment with network zones, VLANs, and inter-zone connectivity'
     
     include 
       Prod,
-      Prod.** where tag is #Vm
+      Prod.Dmz.** where tag is #Vm,
+      Prod.AppTier.** where tag is #Vm,
+      Prod.ProcTier.** where tag is #Vm,
+      Prod.DataTier.** where tag is #Vm,
+      Prod.SecZone,
+	  Prod.InfraZone,
+	  Cicd.CicdZone
+	  
   }
 
   deployment view app_tier {
@@ -17,6 +37,7 @@ views 'Deployment' {
     description 'Microservices deployed across VM instances with external interactions'
     
     include
+      UserBrowser,
       Prod.AppTier,
       Prod.AppTier.** where tag is #Vm,
       Prod.Dmz,
@@ -93,8 +114,7 @@ views 'Deployment' {
     include
       Cicd,
       Cicd.** where tag is #Vm,
-      Prod.** where tag is #Deployment,
-      -> Cicd.**,
-      Cicd.** ->
+      -> Prod.**,
+      -> Cicd.**
   }
 }

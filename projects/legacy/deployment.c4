@@ -2,6 +2,23 @@
 // Self-hosted datacenter deployment for monolithic architecture with VMs and networking
 
 deployment {
+  // User's browser (client-side)
+  Node_AppBrowser UserBrowser 'User Browser' {
+    #AppBrowser
+    description """
+      End-user web browser accessing the vault system
+      
+      | Property | Value |
+      |:---------|:------|
+      | Platform | Windows / macOS / Linux |
+      | Browsers | Chrome, Firefox, Safari, Edge |
+    """
+    
+    webUI = Node_App 'Web UI Instance' {
+      instanceOf vault.monolith.frontend
+    }
+  }
+
   Node_Environment Prod 'Production Datacenter - EU' {
     #Production
     
@@ -220,7 +237,13 @@ deployment {
       }
     }
 
-    // Service-level flows (VM-to-VM connections)
+    // User browser access
+    UserBrowser -[https]-> Prod.Dmz.ProdLbVm 'Load SPA assets' {
+      #Ingress
+      description "Browser downloads UI (HTML/JS/CSS) from webapp server via LB (443)"
+    }
+
+    // Load balancer routing (infrastructure layer - needed for LB visibility)
     ProdLbVm -[https]-> ProdMonolithVm01 'Route primary' {
       #Service #Routing
       description "443 -> 8080"
@@ -229,55 +252,51 @@ deployment {
       #Service #Routing
       description "443 -> 8080"
     }
-    ProdMonolithVm01 -[tcp]-> ProdDatabaseVm 'Persist metadata' {
-      #Service #Persistence
-      description "ephemeral -> 5432"
-    }
-    ProdMonolithVm02 -[tcp]-> ProdDatabaseVm 'Persist metadata (failover)' {
-      #Service #Persistence
-      description "ephemeral -> 5432"
-    }
-    ProdMonolithVm01 -[nfs]-> ProdNfsVm 'Store files' {
-      #Service #Persistence
-      description "ephemeral -> 2049 (NFS)"
-    }
-    ProdMonolithVm02 -[nfs]-> ProdNfsVm 'Store files (standby)' {
-      description "ephemeral -> 2049 (NFS)"
-    }
 
-    // App-to-App connections (application layer)
-    Prod.AppTier.ProdMonolithVm01.monolithApp -> Prod.DataTier.ProdDatabaseVm.dbApp 'Persist metadata'
-    Prod.AppTier.ProdMonolithVm02.monolithApp -> Prod.DataTier.ProdDatabaseVm.dbApp 'Persist metadata (failover)'
-    Prod.AppTier.ProdMonolithVm01.monolithApp -> Prod.DataTier.ProdNfsVm.nfsApp 'Store files'
-    Prod.AppTier.ProdMonolithVm02.monolithApp -> Prod.DataTier.ProdNfsVm.nfsApp 'Store files (standby)'
+    // App-to-App connections (application layer - firewall rules derived from these)
+    UserBrowser.webUI -> Prod.AppTier.ProdMonolithVm01.monolithApp 'API requests' {
+      description "any -> 8080"
+    }
+    Prod.AppTier.ProdMonolithVm01.monolithApp -> Prod.DataTier.ProdDatabaseVm.dbApp 'Persist metadata' {
+      description "any -> 5432"
+    }
+    Prod.AppTier.ProdMonolithVm02.monolithApp -> Prod.DataTier.ProdDatabaseVm.dbApp 'Persist metadata (failover)' {
+      description "any -> 5432"
+    }
+    Prod.AppTier.ProdMonolithVm01.monolithApp -> Prod.DataTier.ProdNfsVm.nfsApp 'Store files' {
+      description "any -> 2049"
+    }
+    Prod.AppTier.ProdMonolithVm02.monolithApp -> Prod.DataTier.ProdNfsVm.nfsApp 'Store files (standby)' {
+      description "any -> 2049"
+    }
 
     // Security and monitoring flows
     Monitoring -[tcp]-> ProdLbVm 'Scrape metrics' {
       #Monitoring #Observability
-      description "ephemeral -> 9000 (HAProxy stats)"
+      description "any -> 9000 (HAProxy stats)"
     }
     Monitoring -[tcp]-> ProdMonolithVm01 'Scrape metrics' {
       #Monitoring #Observability
-      description "ephemeral -> 8080 (actuator)"
+      description "any -> 8080 (actuator)"
     }
     Monitoring -[tcp]-> ProdMonolithVm02 'Scrape metrics' {
       #Monitoring #Observability
-      description "ephemeral -> 8080 (actuator)"
+      description "any -> 8080 (actuator)"
     }
     Monitoring -[tcp]-> ProdDatabaseVm 'Scrape metrics' {
       #Monitoring #Observability
-      description "ephemeral -> 5432 (PostgreSQL stats)"
+      description "any -> 5432 (PostgreSQL stats)"
     }
     Monitoring -[tcp]-> ProdNfsVm 'Scrape metrics' {
       #Monitoring #Observability
-      description "ephemeral -> 2049 (NFS stats)"
+      description "any -> 2049 (NFS stats)"
     }
     Backup -[tcp]-> ProdDatabaseVm 'Backup database' {
       #Backup #Recovery
-      description "ephemeral -> 5432"
+      description "any -> 5432"
     }
     Backup -[nfs]-> ProdNfsVm 'Backup files' {
-      description "ephemeral -> 2049 (NFS)"
+      description "any -> 2049 (NFS)"
     }
   }
 

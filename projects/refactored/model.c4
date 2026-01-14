@@ -3,14 +3,27 @@ model {
     description 'Vault service user'
   }
 
+  // User's web browser
+  browser = Container_Browser 'Web Browser' {
+    technology 'Chrome / Firefox / Safari'
+    description 'User web browser accessing the vault system'
+  }
+
   // --- TARGET SYSTEM ---
   vault = System_Existing 'Secure Vault System' {
     description 'Microservices-based secure file vault with async processing and distributed storage'
     
-    // 0. Frontend
+    // 0. Web Server - serves the SPA
+    webServer = Container_ApplicationServer 'Web Server' {
+      technology 'Nginx / Express'
+      description 'Serves static React SPA assets'
+      icon tech:nginx
+    }
+
+    // 0.1 Frontend (runs in browser)
     frontend = Container_Spa 'Web UI' {
       technology 'React SPA'
-      description 'Single Page Application'
+      description 'Single Page Application running in user browser'
       icon tech:react
     }
 
@@ -140,8 +153,10 @@ model {
   // --- REFACTORED RELATIONSHIPS ---
   
   // Client Access
-  customer -[calls]-> frontend 'Access web interface'
-  frontend -[calls]-> api 'All requests'
+  customer -[calls]-> browser 'Uses web browser'
+  browser -[calls]-> vault.webServer 'Loads React SPA (HTML/JS/CSS)'
+  browser -[calls]-> vault.frontend 'SPA runs in browser'
+  vault.frontend -[calls]-> vault.api 'Makes API requests'
 
   // API Gateway Internal
   vault.api.router -[uses]-> vault.api.auth 'Authenticate requests'

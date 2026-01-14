@@ -3,6 +3,21 @@
 
 views 'Deployment' {
   
+  deployment view user_access {
+    title 'User Access'
+    description 'End-user browser access to the vault system through load balancer'
+    
+    include
+      UserBrowser,
+      UserBrowser.**,
+      Prod.Dmz,
+      Prod.Dmz.**,
+      Prod.AppTier.ProdMonolithVm01,
+      Prod.AppTier.ProdMonolithVm02,
+      -> UserBrowser,
+      UserBrowser ->
+  }
+
   deployment view overview {
     title 'Network Overview'
     description 'Physical datacenter deployment with network zones, VLANs, and inter-zone connectivity'
@@ -17,6 +32,7 @@ views 'Deployment' {
     description 'Monolithic application instances with load balancing, failover, and data tier connections'
     
     include
+      UserBrowser,
       Prod.AppTier,
       Prod.AppTier.** where tag is #Vm,
       Prod.Dmz,

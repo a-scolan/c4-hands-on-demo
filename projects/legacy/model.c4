@@ -5,6 +5,12 @@ model {
     description 'Vault service user'
   }
 
+  // User's web browser
+  browser = Container_Browser 'Web Browser' {
+    technology 'Chrome / Firefox / Safari'
+    description 'User web browser accessing the vault system'
+  }
+
   // The monolithic system
   vault = System_Legacy 'Secure Vault System' {
     
@@ -14,10 +20,16 @@ model {
       description 'Monolithic application'
       icon tech:spring-icon
 
-      // Presentation layer
-      frontend = Component 'Web UI Layer' {
-        description 'JSP/Servlets UI'
-        technology 'Spring MVC'
+      // Presentation layer - Web server serves the UI
+      webappServer = Component 'Webapp Server' {
+        description 'Serves static UI assets (JSP/HTML/JS/CSS)'
+        technology 'Spring MVC / Embedded Tomcat'
+        icon tech:spring-icon
+      }
+
+      frontend = Component 'Web UI (SPA in Browser)' {
+        description 'Client-side UI running in browser'
+        technology 'JSP/JavaScript'
         icon tech:spring-icon
       }
 
@@ -102,7 +114,9 @@ model {
   // --- RELATIONSHIPS (Spaghetti bowl) ---
   
   // Initial Access
-  customer -[calls]-> vault.monolith.frontend 'Access web interface'
+  customer -[calls]-> browser 'Uses web browser'
+  browser -[calls]-> vault.monolith.webappServer 'Loads UI assets (HTML/JS/CSS)'
+  browser -[calls]-> vault.monolith.frontend 'SPA makes API requests'
 
   // Document Upload Flow (Synchronous/Blocking)
   vault.monolith.frontend -[uses]-> vault.monolith.uploadHandler 'Upload file'

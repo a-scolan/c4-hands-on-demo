@@ -1,14 +1,17 @@
-// --- SEQUENCE DIAGRAMS (LEGACY) ---
+// --- USE CASE DIAGRAMS (LEGACY) ---
 // Dynamic views showing synchronous interaction flows in the legacy monolith
 
 views {
 
   // Upload/Processing Flow (Synchronous/Blocking)
-  dynamic view seq_upload_flow {
-    title 'Seq / Upload'
+  dynamic view usecases_upload_flow {
+    title 'Use Cases / Upload'
     
-    customer -> vault.monolith.frontend 'Upload file'
-    vault.monolith.frontend -> vault.monolith.uploadHandler 'POST /upload'
+    customer -> browser 'Upload file'
+    browser -> vault.monolith.webappServer 'Load UI (if needed)'
+    vault.monolith.webappServer -> browser 'Serve SPA'
+    browser -> vault.monolith.frontend 'SPA loaded in browser'
+    vault.monolith.frontend -> vault.monolith.uploadHandler 'POST /api/upload'
     vault.monolith.uploadHandler -> vault.monolith.documentService 'Process upload'
     vault.monolith.documentService -> vault.monolith.fileValidator 'Validate file'
     vault.monolith.fileValidator -> vault.monolith.documentService 'Valid'
@@ -33,11 +36,12 @@ views {
   }
 
   // Retrieval/Download Flow
-  dynamic view seq_retrieval_flow {
-    title 'Seq / Retrieval'
+  dynamic view usecases_retrieval_flow {
+    title 'Use Cases / Retrieval'
     
-    customer -> vault.monolith.frontend 'View documents'
-    vault.monolith.frontend -> vault.monolith.documentService 'GET /documents'
+    customer -> browser 'View documents'
+    browser -> vault.monolith.frontend 'SPA (already loaded)'
+    vault.monolith.frontend -> vault.monolith.documentService 'GET /api/documents'
     vault.monolith.documentService -> vault.monolith.dao 'Query documents'
     vault.monolith.dao -> vault.db 'Fetch metadata'
     vault.db -> vault.monolith.dao 'Return list'
@@ -45,8 +49,9 @@ views {
     vault.monolith.documentService -> vault.monolith.frontend 'Document list'
     vault.monolith.frontend -> customer 'Display documents'
     
-    customer -> vault.monolith.frontend 'Download document'
-    vault.monolith.frontend -> vault.monolith.documentService 'GET /document/{id}'
+    customer -> browser 'Download document'
+    browser -> vault.monolith.frontend 'SPA action'
+    vault.monolith.frontend -> vault.monolith.documentService 'GET /api/document/{id}'
     vault.monolith.documentService -> vault.monolith.dao 'Get metadata'
     vault.monolith.dao -> vault.db 'Query metadata'
     vault.db -> vault.monolith.dao 'File location'

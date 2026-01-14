@@ -1,14 +1,17 @@
-// --- SEQUENCE DIAGRAMS ---
+// --- USE CASE DIAGRAMS ---
 // Dynamic views showing interaction flows in the refactored system
 
 views {
 
   // Upload/Processing Flow
-  dynamic view seq_upload_flow {
-    title 'Seq / Upload'
+  dynamic view usecases_upload_flow {
+    title 'Use Cases / Upload'
     
-    customer -> vault.frontend 'Upload file'
-    vault.frontend -> vault.api 'POST /upload'
+    customer -> browser 'Upload file'
+    browser -> vault.webServer 'Load SPA (if needed)'
+    vault.webServer -> browser 'Serve React SPA'
+    browser -> vault.frontend 'SPA loaded in browser'
+    vault.frontend -> vault.api 'POST /api/upload'
     vault.api -> vault.uploadService 'Route to upload service'
     vault.uploadService -> vault.uploadService 'Validate file (fail-fast)'
     vault.uploadService -> vault.jobs 'Publish FileValidated'
@@ -33,18 +36,20 @@ views {
   }
 
   // Retrieval/Download Flow
-  dynamic view seq_retrieval_flow {
-    title 'Seq / Retrieval'
+  dynamic view usecases_retrieval_flow {
+    title 'Use Cases / Retrieval'
     
-    customer -> vault.frontend 'View documents'
-    vault.frontend -> vault.api 'GET /documents'
+    customer -> browser 'View documents'
+    browser -> vault.frontend 'SPA (already loaded)'
+    vault.frontend -> vault.api 'GET /api/documents'
     vault.api -> vault.retrievalService 'Route to retrieval service'
     vault.retrievalService -> vault.retrievalService 'Check cache'
     vault.retrievalService -> vault.docDB 'Query documents (cache miss)'
     vault.docDB -> vault.retrievalService 'Return list'
     
-    customer -> vault.frontend 'Download document'
-    vault.frontend -> vault.api 'GET /document/{id}'
+    customer -> browser 'Download document'
+    browser -> vault.frontend 'SPA action'
+    vault.frontend -> vault.api 'GET /api/document/{id}'
     vault.api -> vault.retrievalService 'Route to retrieval service'
     vault.retrievalService -> vault.retrievalService 'Check cache'
     vault.retrievalService -> vault.docDB 'Get metadata (cache miss)'
@@ -57,8 +62,8 @@ views {
   }
 
   // Backup & Disaster Recovery Flow
-  dynamic view seq_backup_flow {
-    title 'Seq / MinIO HA Replication'
+  dynamic view usecases_backup_flow {
+    title 'Use Cases / MinIO HA Replication'
     description 'MinIO 3-node distributed replication ensures high availability and fault tolerance'
     
     vault.worker.orchestrator -> vault.worker.minioClient 'Store file'
@@ -67,8 +72,9 @@ views {
     minio -> vault.worker.minioClient 'Replication complete'
     vault.worker.minioClient -> vault.worker.orchestrator 'Stored & replicated'
     
-    customer -> vault.frontend 'Request download'
-    vault.frontend -> vault.api 'GET /document/{id}'
+    customer -> browser 'Request download'
+    browser -> vault.frontend 'SPA action'
+    vault.frontend -> vault.api 'GET /api/document/{id}'
     vault.api -> vault.retrievalService 'Route to retrieval'
     vault.retrievalService -> vault.retrievalService 'Check cache'
     vault.retrievalService -> vault.docDB 'Get metadata (cache miss)'

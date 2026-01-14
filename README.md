@@ -30,8 +30,8 @@ Compare the evolution from monolith to microservices:
 | **[C1 Context](https://a-scolan.github.io/c4-hands-on-demo/#/project/legacy-vault-system/view/c1_context/)** | Legacy | System boundaries | Monolithic vault, NFS storage, VirusTotal |
 | **[C2 Container](https://a-scolan.github.io/c4-hands-on-demo/#/project/legacy-vault-system/view/c2_container/)** | Legacy | Monolith internals | Spring Boot monolith with PostgreSQL + NFS |
 | **[C3 Monolith](https://a-scolan.github.io/c4-hands-on-demo/#/project/legacy-vault-system/view/c3_monolith_components/)** | Legacy | Component details | Synchronous layers: Upload → Validate → Scan → Encrypt |
-| **[Seq: Upload (Legacy)](https://a-scolan.github.io/c4-hands-on-demo/#/project/legacy-vault-system/view/seq_upload_flow/)** | Legacy | Blocking upload | Synchronous processing (10-30s user wait) |
-| **[Seq: Retrieval (Legacy)](https://a-scolan.github.io/c4-hands-on-demo/#/project/legacy-vault-system/view/seq_retrieval_flow/)** | Legacy | Document download | Direct NFS reads |
+| **[Use Cases: Upload (Legacy)](https://a-scolan.github.io/c4-hands-on-demo/#/project/legacy-vault-system/view/usecases_upload_flow/)** | Legacy | Blocking upload | Browser loads SPA → API calls → Synchronous processing (10-30s) |
+| **[Use Cases: Retrieval (Legacy)](https://a-scolan.github.io/c4-hands-on-demo/#/project/legacy-vault-system/view/usecases_retrieval_flow/)** | Legacy | Document download | SPA → API → Direct NFS reads |
 | **[Deployment (Legacy)](https://a-scolan.github.io/c4-hands-on-demo/#/project/legacy-vault-system/view/overview/)** | Legacy | Infrastructure | 2 monolith VMs, PostgreSQL, NFS, HAProxy |
 | | | | |
 | **[C1 Context](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/c1_context/)** | Refactored | System boundaries | Vault system, MinIO storage, VirusTotal API |
@@ -39,14 +39,14 @@ Compare the evolution from monolith to microservices:
 | **[C3 Upload Service](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/c3_upload_service/)** | Refactored | Upload internals | Fail-fast validation before queuing |
 | **[C3 Retrieval Service](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/c3_retrieval_service/)** | Refactored | Retrieval internals | Unified metadata + files with Redis cache |
 | **[C3 Worker](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/c3_processing_worker/)** | Refactored | Worker internals | Async orchestrator: Scan → Encrypt → Store |
-| **[Seq: Upload](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/seq_upload_flow/)** | Refactored | Async upload | Validate → Queue → Async processing (< 500ms response) |
-| **[Seq: Retrieval](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/seq_retrieval_flow/)** | Refactored | Cached retrieval | Check cache → Fetch MinIO → Decrypt |
-| **[Seq: HA Replication](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/seq_backup_flow/)** | Refactored | Disaster recovery | MinIO 3-node distributed replication |
-| **[Deployment Overview](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/overview/)** | Refactored | Infrastructure | 7 zones, 11 VMs, Kong, MongoDB, MinIO, CI/CD |
-| **[App Tier](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/app_tier/)** | Refactored | App deployment | Frontend, Upload, Retrieval services |
+| **[Use Cases: Upload](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/usecases_upload_flow/)** | Refactored | Async upload | Browser loads SPA → API calls → Validate → Queue → Async processing (< 500ms) |
+| **[Use Cases: Retrieval](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/usecases_retrieval_flow/)** | Refactored | Cached retrieval | SPA → API → Check cache → Fetch MinIO → Decrypt |
+| **[Use Cases: HA Replication](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/usecases_backup_flow/)** | Refactored | Disaster recovery | MinIO 3-node distributed replication |
+| **[Deployment Overview](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/overview/)** | Refactored | Infrastructure | 7 zones, 10 VMs, Nginx, Kong, MongoDB, MinIO, CI/CD |
+| **[App Tier](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/app_tier/)** | Refactored | App deployment | Nginx (SPA), Upload, Retrieval services |
 | **[CI/CD Pipeline](https://a-scolan.github.io/c4-hands-on-demo/#/project/refactored-vault-system/view/cicd/)** | Refactored | DevOps automation | GitLab, Harbor, schema migrations |
 
-💡 **Tip:** Compare legacy vs. refactored: C1 Context → C2 Container → Seq Upload Flow to see the evolution
+💡 **Tip:** Compare legacy vs. refactored: C1 Context → C2 Container → Use Cases Upload Flow to see the evolution
 
 ## � Installation & Setup
 
@@ -154,7 +154,7 @@ Once the server is running, you can:
 - Browse all views from both projects in the web interface
 - Compare legacy vs. refactored architectures side-by-side
 - Navigate between C1 (Context), C2 (Container), and C3 (Component) views
-- Explore sequence diagrams showing upload and retrieval flows
+- Explore use case diagrams showing upload and retrieval flows
 
 ### Alternative: Open Individual Projects
 
@@ -194,7 +194,7 @@ c4_hands-on-demo/
 │       ├── spec.c4
 │       ├── model.c4
 │       ├── views.c4
-│       ├── sequences.c4  # Dynamic sequence views
+│       ├── sequences.c4  # Dynamic use case views
 │       ├── deployment.c4 # Infrastructure deployment model
 │       └── deployment-views.c4 # Deployment views
 ├── shared/               # Shared specifications
@@ -215,7 +215,7 @@ Each project has specialized files following [LikeC4 DSL structure](https://like
 | **views.c4** | C1/C2/C3 visualizations of the model | [Views](https://likec4.dev/dsl/views) |
 | **deployment.c4** | Physical infrastructure - environments, zones, VMs, apps | [Deployment](https://likec4.dev/dsl/deployment) |
 | **deployment-views.c4** | Infrastructure topology views | [Deployment Views](https://likec4.dev/dsl/deployment/views) |
-| **sequences.c4** | Dynamic interaction flows | [Sequences](https://likec4.dev/dsl/dynamic) |
+| **sequences.c4** | Dynamic interaction flows (use cases) | [Sequences](https://likec4.dev/dsl/dynamic) |
 
 **Key Principle:** Model = Business logic (deployment-agnostic) | Deployment = Physical infrastructure
 
@@ -284,13 +284,23 @@ customer -> vault.api 'Access API'
 AppTier -> DataTier 'API traffic'
 ```
 
-✅ **EXCEPTION** - Dynamic views (sequences) may use untyped arrows for flow clarity:
+✅ **EXCEPTION** - Dynamic views (use case flows) may use untyped arrows for flow clarity:
 ```likec4
 // Acceptable in dynamic views - focus is on temporal flow
-dynamic view seq_upload {
+dynamic view usecases_upload {
   customer -> vault.frontend 'Upload file'
   vault.frontend -> vault.api 'POST /upload'
 }
+```
+
+✅ **NO RETURN RELATIONSHIPS** - Return/response flows are implicit and should not be modeled:
+```likec4
+// ❌ BAD - Explicit return
+browser -[calls]-> webServer 'Load SPA'
+webServer -[calls]-> browser 'Returns HTML/JS'  // Don't add this
+
+// ✅ GOOD - Return is implicit
+browser -[calls]-> webServer 'Load SPA (HTML/JS/CSS)'
 ```
 
 **Why?** Typed relationships enable:
@@ -298,6 +308,57 @@ dynamic view seq_upload {
 - Better diagram filtering and queries
 - Consistent styling and visual hierarchy
 - Self-documenting architecture
+
+### 📡 Deployment Relationships Best Practice
+
+Deployment models show physical infrastructure and actual network flows. Follow these rules:
+
+#### **Linking Strategy**
+```likec4
+// ✅ VM-to-VM for infrastructure level flows
+UserBrowser -[https]-> Prod.Dmz.ProdApigwVm 'Load API'
+
+// ✅ App-to-App when linking deployed instances (Node_App)
+UserBrowser.browserApp -> Prod.Dmz.ProdApigwVm.apiApp 'API requests'
+
+// ❌ DON'T link to non-existent properties
+UserBrowser.browserApp.frontend -> VM.someProperty  // frontend doesn't exist!
+
+// ❌ DON'T use functional descriptions
+description "Web UI calls database"
+
+// ✅ USE network-only descriptions
+description "any -> 27017"  // protocol and port only
+```
+
+#### **Description Format: Port Semantics**
+
+Port descriptions show network flow direction. Use:
+
+- **`any -> targetPort`**: Connections from any source port to target
+  - Browser to server: `any -> 443`
+  - Monitoring scrapers: `any -> 8080`
+  - Service to database: `any -> 27017`
+  - Backup processes: `any -> 5432`
+
+- **`sourcePort -> targetPort`**: When source port is known and significant
+  - API Gateway to microservice: `443 -> 3001` (Kong listening on 443, calls service on 3001)
+  - Load balancer to app: `443 -> 8080`
+
+**Rule**: Use `any` for most connections (source port is implementation detail). Use actual source port only when it's architecturally significant.
+
+#### **Valid Node_App References**
+Only reference Node_App instances that actually exist in the deployment:
+```likec4
+// ✅ These exist and work
+ProdApigwVm.apiApp         // defined in VM
+ProdUploadVm.uploadApp     // defined in VM
+UserBrowser.browserApp     // defined in UserBrowser
+
+// ❌ These don't exist
+ProdApigwVm.api            // api doesn't exist, only apiApp
+UserBrowser.frontend       // frontend doesn't exist, only browserApp
+```
 
 ### 🏗️ Architecture Organization
 
@@ -314,7 +375,7 @@ project/
 ├── views.c4             # C1/C2/C3 visualization
 ├── deployment.c4        # Physical infrastructure
 ├── deployment-views.c4  # Infrastructure topology views
-└── sequences.c4         # Dynamic interaction flows
+└── sequences.c4         # Dynamic use case flows
 ```
 
 ### 🎨 Naming & Documentation Standards
@@ -397,7 +458,7 @@ ProdApigwVm -[https]-> ProdUploadVm 'Route uploads' {
 }
 
 AppTier -[tcp]-> DataTier 'Service reads/writes' {
-  description "ephemeral -> 27017 (MongoDB), 9000-9001 (MinIO)"
+  description "any -> 27017 (MongoDB), 9000-9001 (MinIO)"
 }
 ```
 

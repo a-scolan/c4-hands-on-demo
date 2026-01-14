@@ -2,6 +2,24 @@
 // Self-hosted datacenter deployment with VMs and networking
 
 deployment {
+  // User's browser (client-side)
+  Node_AppBrowser UserBrowser 'User Browser' {
+    #AppBrowser
+    description """
+      End-user web browser accessing the vault system
+      
+      | Property | Value |
+      |:---------|:------|
+      | Platform | Windows / macOS / Linux |
+      | Browsers | Chrome, Firefox, Safari, Edge |
+    """
+    
+    browserApp = Node_App 'Browser Instance' {
+		instanceOf browser
+		instanceOf vault.frontend
+	}
+  }
+
   Node_Environment Prod 'Production Datacenter - EU' {
     #Production
     
@@ -38,6 +56,26 @@ deployment {
           instanceOf vault.api
         }
       }
+      // Web Server VM - serves the SPA
+      ProdWebServerVm = Node_Vm 'prod-webserver-vm' {
+        #Deployment
+        technology "Nginx"
+        description """
+          Serves static React SPA assets (HTML/JS/CSS)
+          
+          | Property | Value |
+          |:---------|:------|
+          | eth0 | 10.1.0.10/24 |
+          | OS | Ubuntu 22.04 LTS |
+          | CPU | 2 vCPU |
+          | RAM | 4 GB |
+          | Port | 80 |
+        """
+        
+        webServerApp = Node_App 'Web Server App' {
+          instanceOf vault.webServer
+        }
+      }
     }
 
   // Application Zone
@@ -53,26 +91,6 @@ deployment {
         | Gateway | 10.1.0.1 |
       """
       
-      // Frontend VM
-      ProdFrontendVm = Node_Vm 'prod-frontend-vm' {
-        #Deployment
-        technology "Node.js"
-        description """
-          React SPA and API Gateway proxy
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.1.0.11/24 |
-          | OS | Ubuntu 22.04 LTS |
-          | CPU | 4 vCPU |
-          | RAM | 8 GB |
-          | Port | 3000 |
-        """
-        
-        frontendApp = Node_App 'Frontend App' {
-          instanceOf vault.frontend
-        }
-      }
 
       // Upload Service VM
       ProdUploadVm = Node_Vm 'prod-upload-vm' {
@@ -299,91 +317,78 @@ deployment {
       }
     }
 
-    // Service-level flows (VM-to-VM connections)
-    ProdApigwVm -[https]-> ProdFrontendVm 'Serve SPA assets' {
-      #Service #Routing
-      description "443 -> 3000"
-    }
-    ProdApigwVm -[https]-> ProdUploadVm 'Route uploads' {
-      #Service #Routing
-      description "443 -> 3001"
-    }
-    ProdApigwVm -[https]-> ProdRetrievalVm 'Route list/download' {
-      #Service #Routing
-      description "443 -> 3002"
-    }
-    ProdUploadVm -[amqp]-> ProdQueueVm 'Publish jobs' {
-      #Service #Messaging
-      description "ephemeral -> 5672"
-    }
-    ProdWorkerVm -[tcp]-> ProdDatabaseVm 'Persist metadata' {
-      #Service #Persistence
-      description "ephemeral -> 27017"
-    }
-    ProdWorkerVm -[tcp]-> ProdStorageVm 'Store files' {
-      #Service #Persistence
-      description "ephemeral -> 9000-9001 (MinIO)"
-    }
-    ProdRetrievalVm -[tcp]-> ProdDatabaseVm 'Fetch metadata/keys' {
-      #Service #Persistence
-      description "ephemeral -> 27017"
-    }
-    ProdRetrievalVm -[tcp]-> ProdStorageVm 'Fetch objects' {
-      #Service #Persistence
-      description "ephemeral -> 9000-9001 (MinIO)"
+    // User browser access - loads SPA from web server
+    UserBrowser.browser -[https]-> Prod.Dmz.ProdWebServerVm 'Load SPA assets' {
+      #Ingress
+      description "any -> 443"
     }
 
-    // App-to-App connections (application layer)
-    Prod.Dmz.ProdApigwVm.apiApp -> Prod.AppTier.ProdFrontendVm.frontendApp 'Serve SPA'
-    Prod.Dmz.ProdApigwVm.apiApp -> Prod.AppTier.ProdUploadVm.uploadApp 'Route uploads'
-    Prod.Dmz.ProdApigwVm.apiApp -> Prod.AppTier.ProdRetrievalVm.retrievalApp 'Route retrieval'
-    Prod.AppTier.ProdUploadVm.uploadApp -> Prod.ProcTier.ProdQueueVm.queueApp 'Queue jobs'
-    Prod.ProcTier.ProdWorkerVm.workerApp -> Prod.DataTier.ProdDatabaseVm.dbApp 'Persist metadata'
-    Prod.ProcTier.ProdWorkerVm.workerApp -> Prod.DataTier.ProdStorageVm.storageApp 'Store files'
-    Prod.AppTier.ProdRetrievalVm.retrievalApp -> Prod.DataTier.ProdDatabaseVm.dbApp 'Fetch metadata'
-    Prod.AppTier.ProdRetrievalVm.retrievalApp -> Prod.DataTier.ProdStorageVm.storageApp 'Fetch objects'
+    // App-to-App connections (application layer - firewall rules derived from these)
+    UserBrowser.browserApp.frontend -> Prod.Dmz.ProdApigwVm.apiApp 'API requests' {
+      description "any -> 443 (HTTPS)"
+    }
+    Prod.Dmz.ProdApigwVm.apiApp -> Prod.AppTier.ProdUploadVm.uploadApp 'Route uploads' {
+      description "443 -> 3001"
+    }
+    Prod.Dmz.ProdApigwVm.apiApp -> Prod.AppTier.ProdRetrievalVm.retrievalApp 'Route retrieval' {
+      description "443 -> 3002"
+    }
+    Prod.AppTier.ProdUploadVm.uploadApp -> Prod.ProcTier.ProdQueueVm.queueApp 'Queue jobs' {
+      description "3001 -> 5672"
+    }
+    Prod.ProcTier.ProdWorkerVm.workerApp -> Prod.ProcTier.ProdQueueVm.queueApp 'Consume jobs' {
+      description "any -> 5672"
+    }
+    Prod.ProcTier.ProdWorkerVm.workerApp -> Prod.DataTier.ProdDatabaseVm.dbApp 'Persist metadata' {
+      description "any -> 27017"
+    }
+    Prod.ProcTier.ProdWorkerVm.workerApp -> Prod.DataTier.ProdStorageVm.storageApp 'Store files' {
+      description "any -> 9000-9001"
+    }
+    Prod.AppTier.ProdRetrievalVm.retrievalApp -> Prod.DataTier.ProdDatabaseVm.dbApp 'Fetch metadata' {
+      description "3002 -> 27017"
+    }
+    Prod.AppTier.ProdRetrievalVm.retrievalApp -> Prod.DataTier.ProdStorageVm.storageApp 'Fetch objects' {
+      description "3002 -> 9000-9001"
+    }
 
     // Security and monitoring flows
     Monitoring -[tcp]-> ProdApigwVm 'Scrape metrics' {
       #Monitoring #Observability
-      description "ephemeral -> 9090 (Prometheus)"
-    }
-    Monitoring -[tcp]-> ProdFrontendVm 'Scrape metrics' {
-      #Monitoring #Observability
-      description "ephemeral -> 9090"
+      description "any -> 9090"
     }
     Monitoring -[tcp]-> ProdUploadVm 'Scrape metrics' {
       #Monitoring #Observability
-      description "ephemeral -> 9090"
+      description "any -> 9090"
     }
     Monitoring -[tcp]-> ProdRetrievalVm 'Scrape metrics' {
       #Monitoring #Observability
-      description "ephemeral -> 9090"
+      description "any -> 9090"
     }
     Monitoring -[tcp]-> ProdWorkerVm 'Scrape metrics' {
       #Monitoring #Observability
-      description "ephemeral -> 9090"
+      description "any -> 9090"
     }
     Monitoring -[tcp]-> ProdQueueVm 'Scrape metrics' {
       #Monitoring #Observability
-      description "ephemeral -> 15672 (RabbitMQ mgmt)"
+      description "any -> 15672 (RabbitMQ mgmt)"
     }
     Monitoring -[tcp]-> ProdDatabaseVm 'Scrape metrics' {
       #Monitoring #Observability
-      description "ephemeral -> 27017 (MongoDB metrics)"
+      description "any -> 27017 (MongoDB metrics)"
     }
     Monitoring -[tcp]-> ProdStorageVm 'Scrape metrics' {
-      description "ephemeral -> 9000 (MinIO metrics)"
+      description "any -> 9000 (MinIO metrics)"
     }
 
     // Backup and disaster recovery flows
     Backup -[tcp]-> ProdDatabaseVm 'Backup database' {
       #Backup #Recovery
-      description "ephemeral -> 27017 (MongoDB dump)"
+      description "any -> 27017 (MongoDB dump)"
     }
     Backup -[tcp]-> ProdStorageVm 'Backup objects' {
       #Backup #Recovery
-      description "ephemeral -> 9000-9001 (MinIO replication)"
+      description "any -> 9000-9001 (MinIO replication)"
     }
   }
 
@@ -395,7 +400,7 @@ deployment {
       for automated testing and deployment of microservices
     """
 
-    CicdZone = Zone 'CI/CD Tools Zone (VLAN 200: 10.200.0.0/24)' {
+    CicdZone = Zone 'CI/CD Prod (VLAN 200: 10.200.0.0/24)' {
       #Pipeline
       description """
         Development and deployment automation tools
@@ -495,9 +500,14 @@ deployment {
     }
 
     // CI/CD pipeline orchestrates deployments
-    CicdPipelineVm -[https]-> Prod.AppTier.ProdFrontendVm 'Deploy Frontend' {
+    CicdPipelineVm -[https]-> Prod.Dmz.ProdApigwVm 'Deploy API Gateway' {
       #DeploymentAutomation
-      description "Trigger Frontend deployment"
+      description "Trigger Kong deployment to API Gateway"
+    }
+
+    CicdPipelineVm -[https]-> Prod.Dmz.ProdWebServerVm 'Deploy Web Server' {
+      #DeploymentAutomation
+      description "Deploy SPA assets to web server"
     }
 
     CicdPipelineVm -[https]-> Prod.AppTier.ProdUploadVm 'Deploy Upload Service' {
@@ -536,10 +546,9 @@ deployment {
       description "Trigger MinIO deployment"
     }
 
-    // VMs pull images from registry
-    Prod.AppTier.ProdFrontendVm -[https]-> RegistryVm 'Pull Frontend image' {
+    Prod.Dmz.ProdWebServerVm -[https]-> ArtifactRepoVm 'Pull SPA assets' {
       #DeploymentAutomation
-      description "Pull container image from registry"
+      description "Pull built React SPA static files"
     }
 
     Prod.AppTier.ProdUploadVm -[https]-> RegistryVm 'Pull Upload image' {
