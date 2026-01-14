@@ -1,7 +1,7 @@
 {
 	"$schema": "https://likec4.dev/schemas/config.json",
 	"name": "refactored-vault-system",
-	"title": "Refactored Vault System - Architecture Microservices",
+	"title": "Refactored Vault System - Microservices Architecture",
 	"include": {
 		"paths": ["../shared"]
 	},
