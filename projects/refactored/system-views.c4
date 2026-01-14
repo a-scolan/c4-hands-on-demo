@@ -58,6 +58,7 @@ views {
 	view c3_upload_service {
 		title 'C3 / Upload Service'
 		include customer
+		include browser
 		include vault.*
 		include vault.uploadService.*
 		include vault.minio.*
@@ -76,6 +77,7 @@ views {
 	view c3_retrieval_service {
 		title 'C3 / Retrieval Service'
 		include customer
+		include browser
 		include vault.*
 		include vault.retrievalService.*
 		include vault.minio.*
@@ -94,6 +96,7 @@ views {
 	view c3_processing_worker {
 		title 'C3 / Processing Worker'
 		include customer
+		include browser
 		include vault.*
 		include vault.worker.*
 		include vault.minio.*
