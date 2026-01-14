@@ -2,452 +2,234 @@
 // Self-hosted datacenter deployment for monolithic architecture with VMs and networking
 
 deployment {
-  // User's browser (client-side)
-  Node_AppBrowser UserBrowser 'User Browser' {
-    #AppBrowser
-    description """
-      End-user web browser accessing the vault system
-      
-      | Property | Value |
-      |:---------|:------|
-      | Platform | Windows / macOS / Linux |
-      | Browsers | Chrome, Firefox, Safari, Edge |
-    """
-    
-    webUI = Node_App 'Web UI Instance' {
-      instanceOf vault.monolith.frontend
-    }
-  }
+	// User's browser (client-side)
+	Zone Internet "Public Internet" {
+		#Environment
+		description """
+		End-user access from public internet
+		"""
+		Node_AppBrowser UserBrowser "User Browser" {
+			#AppBrowser
+			description """
+			End-user web browser accessing the vault system
+			
+			| Property | Value |
+			|:---------|:------|
+			| Platform | Windows / macOS / Linux |
+			| Browsers | Chrome, Firefox, Safari, Edge |
+		"""
 
-  Node_Environment Prod 'Production Datacenter - EU' {
-    #Production
-    
-    // Network Infrastructure
-  Zone Dmz 'Network DMZ (VLAN 100: 10.0.0.0/24)' {
-      #Networking
-      description """
-        Perimeter security zone with edge services
-        
-        | Property | Value |
-        |:---------|:------|
-        | VLAN | 100 |
-        | Network | 10.0.0.0/24 |
-        | Gateway | 10.0.0.1 |
-      """
-      
-      // Load Balancer for frontend
-      ProdLbVm = Node_Vm 'ProdLbVm' {
-        technology "HAProxy"
-          description """
-            SSL termination, traffic distribution
-          
-            | Property | Value |
-            |:---------|:------|
-            | eth0 | 10.0.0.10/24 |
-            | OS | CentOS 8 |
-            | CPU | 4 vCPU |
-            | RAM | 8 GB |
-          """
-      }
-    }
+			browserApp = Node_App "Browser Instance" {
+				instanceOf browser
+				instanceOf vault.frontend
+			}
+		}
+		// External SaaS Services
+		Node_External VirusTotalService "VirusTotal API" {
+			description """
+			External antivirus scanning service (SaaS)
+			
+			| Property | Value |
+			|:---------|:------|
+			| Provider | VirusTotal |
+			| Type | SaaS API |
+			| Protocol | HTTPS |
+			"""
 
-  // Application Zone
-  AppTier = Zone 'Application Tier (VLAN 101: 10.1.0.0/24)' {
-      #Infrastructure
-      description """
-        Monolithic application deployment zone
-        
-        | Property | Value |
-        |:---------|:------|
-        | VLAN | 101 |
-        | Network | 10.1.0.0/24 |
-        | Gateway | 10.1.0.1 |
-      """
-      
-      // Monolith VM (Primary)
-      ProdMonolithVm01 = Node_Vm 'ProdMonolithVm01' {
-        #Deployment
-        technology "Java 17 / Spring Boot"
-          description """
-            Primary monolithic application instance
-          
-            | Property | Value |
-            |:---------|:------|
-            | eth0 | 10.1.0.11/24 |
-            | OS | CentOS 8 |
-            | CPU | 8 vCPU |
-            | RAM | 16 GB |
-            | Port | 8080 |
-            | JVM Heap | 12 GB |
-          """
-        
-        monolithApp = Node_App 'Monolith App (Primary)' {
-          instanceOf vault.monolith
-        }
-      }
+			scannerInstance = Node_App "VirusTotal API Instance" {
+				instanceOf scanner
+			}
+		}
+	}
+	Node_Environment Prod "Production Datacenter - EU" {
+		#Production
+		
+		// Network Infrastructure
+		Zone Dmz "Network DMZ (VLAN 100: 10.0.0.0/24)" {
+			#Networking
+			description """
+				Perimeter security zone with edge services
+				
+				| Property | Value |
+				|:---------|:------|
+				| VLAN | 100 |
+				| Network | 10.0.0.0/24 |
+				| Gateway | 10.0.0.1 |
+			"""
+			
+			// Load Balancer for frontend
+			ProdLbVm = Node_Vm "ProdLbVm" {
+				technology "HAProxy"
+				description """
+						SSL termination, traffic distribution
+					
+						| Property | Value |
+						|:---------|:------|
+						| eth0 | 10.0.0.10/24 |
+						| OS | CentOS 8 |
+						| CPU | 4 vCPU |
+						| RAM | 8 GB |
+						| Port | 443 |
+					"""
 
-      // Monolith VM (Secondary - hot standby)
-      ProdMonolithVm02 = Node_Vm 'ProdMonolithVm02' {
-        #Deployment
-        technology "Java 17 / Spring Boot"
-          description """
-            Secondary monolithic application instance (hot standby)
-          
-            | Property | Value |
-            |:---------|:------|
-            | eth0 | 10.1.0.12/24 |
-            | OS | CentOS 8 |
-            | CPU | 8 vCPU |
-            | RAM | 16 GB |
-            | Port | 8080 |
-            | JVM Heap | 12 GB |
-            | Mode | hot-standby |
-          """
-        
-        monolithApp = Node_App 'Monolith App (Secondary)' {
-          instanceOf vault.monolith
-        }
-      }
-    }
+				lbApp = Node_App "Load Balancer App" {
+					instanceOf vault.loadBalancer
+				}
+			}
+		}
 
-  // Data Tier
-  DataTier = Zone 'Data Tier (VLAN 102: 10.2.0.0/24)' {
-      #Infrastructure
-      description """
-        Database and file storage zone
-        
-        | Property | Value |
-        |:---------|:------|
-        | VLAN | 102 |
-        | Network | 10.2.0.0/24 |
-        | Gateway | 10.2.0.1 |
-      """
-      
-      // PostgreSQL Database
-      ProdDatabaseVm = Node_Vm 'ProdDatabaseVm' {
-        #Deployment
-        technology "PostgreSQL 14"
-          description """
-            Vault metadata and document records
-          
-            | Property | Value |
-            |:---------|:------|
-            | eth0 | 10.2.0.17/24 |
-            | OS | CentOS 8 |
-            | CPU | 16 vCPU |
-            | RAM | 64 GB |
-            | Port | 5432 |
-            | Disk | 2 TB SSD |
-            | Replication | primary + 1 standby |
-            | Encryption | at-rest enabled |
-            | Backup | daily incremental |
-          """
-        
-        dbApp = Node_App 'PostgreSQL Instance' {
-          instanceOf vault.db
-        }
-      }
+		// Application Zone
+		AppTier = Zone "Application Tier (VLAN 101: 10.1.0.0/24)" {
+			description """
+				Monolithic application deployment zone
+				
+				| Property | Value |
+				|:---------|:------|
+				| VLAN | 101 |
+				| Network | 10.1.0.0/24 |
+				| Gateway | 10.1.0.1 |
+			"""
+			
+			// Monolith VM (Primary)
+			ProdMonolithVm01 = Node_Vm "ProdMonolithVm01" {
+				#Deployment
+				technology "Java 17 / Spring Boot"
+				description """
+						Primary monolithic application instance
+					
+						| Property | Value |
+						|:---------|:------|
+						| eth0 | 10.1.0.11/24 |
+						| OS | CentOS 8 |
+						| CPU | 8 vCPU |
+						| RAM | 16 GB |
+						| Port | 8080 |
+						| JVM Heap | 12 GB |
+					"""
 
-      // NFS Storage
-      ProdNfsVm = Node_Vm 'ProdNfsVm' {
-        #Deployment
-        technology "NFS / GlusterFS"
-          description """
-            Encrypted file storage on shared NFS mount
-          
-            | Property | Value |
-            |:---------|:------|
-            | eth0 | 10.2.0.18/24 |
-            | OS | CentOS 8 |
-            | CPU | 8 vCPU |
-            | RAM | 32 GB |
-            | Disk | 500 TB HDD |
-            | Mount Point | /mnt/data |
-            | Replication | 3-way mirroring |
-            | Encryption | at-rest enabled |
-            | Snapshots | hourly |
-          """
-        
-        nfsApp = Node_App 'NFS Service' {
-          instanceOf vault.disk
-        }
-      }
-    }
+				monolithApp = Node_App "Monolith App (Primary)" {
+					instanceOf vault.monolith
+				}
+			}
 
-  // Security Zone - Intermediate security appliances
-  // Security Zone - Monitoring and observability
-  SecZone = Zone 'Security & Monitoring (VLAN 103: 10.3.0.0/24)' {
-      #Security
-      description """
-        Monitoring, logging, and observability infrastructure
-        
-        | Property | Value |
-        |:---------|:------|
-        | VLAN | 103 |
-        | Network | 10.3.0.0/24 |
-        | Gateway | 10.3.0.1 |
-      """
-      
-      // Monitoring VM
-      Monitoring = Node_Vm 'Monitoring' {
-        #SharedInfra
-        technology "Prometheus + Grafana + Splunk"
-          description """
-            Metrics, logs, and alerting
-          
-            | Property | Value |
-            |:---------|:------|
-            | eth0 | 10.3.0.19/24 |
-            | OS | CentOS 8 |
-            | CPU | 4 vCPU |
-            | RAM | 16 GB |
-            | Disk | 2 TB SSD |
-          """
-      }
-    }
+			// Monolith VM (Secondary - hot standby)
+			ProdMonolithVm02 = Node_Vm "ProdMonolithVm02" {
+				#Deployment
+				technology "Java 17 / Spring Boot"
+				description """
+						Secondary monolithic application instance (hot standby)
+					
+						| Property | Value |
+						|:---------|:------|
+						| eth0 | 10.1.0.12/24 |
+						| OS | CentOS 8 |
+						| CPU | 8 vCPU |
+						| RAM | 16 GB |
+						| Port | 8080 |
+						| JVM Heap | 12 GB |
+						| Mode | hot-standby |
+					"""
 
-  // Infrastructure Zone - Backup and disaster recovery
-  InfraZone = Zone 'Backup & Disaster Recovery (VLAN 105: 10.5.0.0/24)' {
-      #Infrastructure
-      description """
-        Backup, replication, and disaster recovery infrastructure
-        
-        | Property | Value |
-        |:---------|:------|
-        | VLAN | 105 |
-        | Network | 10.5.0.0/24 |
-        | Gateway | 10.5.0.1 |
-      """
-      
-      // Backup VM
-      Backup = Node_Vm 'Backup' {
-        technology "Bacula / Veeam"
-          description """
-            Offsite backup and disaster recovery
-          
-            | Property | Value |
-            |:---------|:------|
-            | eth0 | 10.5.0.20/24 |
-            | OS | CentOS 8 |
-            | CPU | 4 vCPU |
-            | RAM | 8 GB |
-            | Disk | 10 TB HDD |
-            | Retention | 30 days |
-          """
-      }
-    }
+				monolithApp = Node_App "Monolith App (Secondary)" {
+					instanceOf vault.monolith
+				}
+			}
+		}
 
-    // User browser access
-    UserBrowser -[https]-> Prod.Dmz.ProdLbVm 'Load SPA assets' {
-      #Ingress
-      description "Browser downloads UI (HTML/JS/CSS) from webapp server via LB (443)"
-    }
+		// Data Tier
+		DataTier = Zone "Data Tier (VLAN 102: 10.2.0.0/24)" {
+			description """
+				Database and file storage zone
+				
+				| Property | Value |
+				|:---------|:------|
+				| VLAN | 102 |
+				| Network | 10.2.0.0/24 |
+				| Gateway | 10.2.0.1 |
+			"""
+			
+			// PostgreSQL Database
+			ProdDatabaseVm = Node_Vm "ProdDatabaseVm" {
+				#Deployment
+				technology "PostgreSQL 14"
+				description """
+						Vault metadata and document records
+					
+						| Property | Value |
+						|:---------|:------|
+						| eth0 | 10.2.0.17/24 |
+						| OS | CentOS 8 |
+						| CPU | 16 vCPU |
+						| RAM | 64 GB |
+						| Port | 5432 |
+						| Disk | 2 TB SSD |
+						| Replication | primary + 1 standby |
+						| Encryption | at-rest enabled |
+						| Backup | daily incremental |
+					"""
 
-    // Load balancer routing (infrastructure layer - needed for LB visibility)
-    ProdLbVm -[https]-> ProdMonolithVm01 'Route primary' {
-      #Service #Routing
-      description "443 -> 8080"
-    }
-    ProdLbVm -[https]-> ProdMonolithVm02 'Route standby' {
-      #Service #Routing
-      description "443 -> 8080"
-    }
+				dbApp = Node_App "PostgreSQL Instance" {
+					instanceOf vault.db
+				}
+			}
 
-    // App-to-App connections (application layer - firewall rules derived from these)
-    UserBrowser.webUI -> Prod.AppTier.ProdMonolithVm01.monolithApp 'API requests' {
-      description "any -> 8080"
-    }
-    Prod.AppTier.ProdMonolithVm01.monolithApp -> Prod.DataTier.ProdDatabaseVm.dbApp 'Persist metadata' {
-      description "any -> 5432"
-    }
-    Prod.AppTier.ProdMonolithVm02.monolithApp -> Prod.DataTier.ProdDatabaseVm.dbApp 'Persist metadata (failover)' {
-      description "any -> 5432"
-    }
-    Prod.AppTier.ProdMonolithVm01.monolithApp -> Prod.DataTier.ProdNfsVm.nfsApp 'Store files' {
-      description "any -> 2049"
-    }
-    Prod.AppTier.ProdMonolithVm02.monolithApp -> Prod.DataTier.ProdNfsVm.nfsApp 'Store files (standby)' {
-      description "any -> 2049"
-    }
+			// NFS Storage
+			ProdNfsVm = Node_Vm "ProdNfsVm" {
+				#Deployment
+				technology "NFS / GlusterFS"
+				description """
+						Encrypted file storage on shared NFS mount
+					
+						| Property | Value |
+						|:---------|:------|
+						| eth0 | 10.2.0.18/24 |
+						| OS | CentOS 8 |
+						| CPU | 8 vCPU |
+						| RAM | 32 GB |
+						| Disk | 500 TB HDD |
+						| Mount Point | /mnt/data |
+						| Replication | 3-way mirroring |
+						| Encryption | at-rest enabled |
+						| Snapshots | hourly |
+					"""
 
-    // Security and monitoring flows
-    Monitoring -[tcp]-> ProdLbVm 'Scrape metrics' {
-      #Monitoring #Observability
-      description "any -> 9000 (HAProxy stats)"
-    }
-    Monitoring -[tcp]-> ProdMonolithVm01 'Scrape metrics' {
-      #Monitoring #Observability
-      description "any -> 8080 (actuator)"
-    }
-    Monitoring -[tcp]-> ProdMonolithVm02 'Scrape metrics' {
-      #Monitoring #Observability
-      description "any -> 8080 (actuator)"
-    }
-    Monitoring -[tcp]-> ProdDatabaseVm 'Scrape metrics' {
-      #Monitoring #Observability
-      description "any -> 5432 (PostgreSQL stats)"
-    }
-    Monitoring -[tcp]-> ProdNfsVm 'Scrape metrics' {
-      #Monitoring #Observability
-      description "any -> 2049 (NFS stats)"
-    }
-    Backup -[tcp]-> ProdDatabaseVm 'Backup database' {
-      #Backup #Recovery
-      description "any -> 5432"
-    }
-    Backup -[nfs]-> ProdNfsVm 'Backup files' {
-      description "any -> 2049 (NFS)"
-    }
-  }
+				nfsApp = Node_App "NFS Service" {
+					instanceOf vault.disk
+				}
+			}
+		}
 
-  // CI/CD Infrastructure
-  Node_Environment Cicd 'CI/CD Pipeline Infrastructure' {
-    #Cicd
-    description """
-      Continuous Integration and Continuous Deployment infrastructure
-      for automated testing and deployment of the monolithic application
-    """
+		// Security Zone - Monitoring and observability
+		// Security Zone - Backup and disaster recovery
+		// (Defined in operations.c4)
 
-    CicdZone = Zone 'CI/CD Tools Zone (VLAN 200: 10.200.0.0/24)' {
-      #Pipeline
-      description """
-        Development and deployment automation tools
-        
-        | Property | Value |
-        |:---------|:------|
-        | VLAN | 200 |
-        | Network | 10.200.0.0/24 |
-        | Gateway | 10.200.0.1 |
-      """
+		// User browser access through load balancer
+		UserBrowser.frontend -> Prod.Dmz.ProdLbVm.lbApp "API requests" {
+			#Ingress
+			description "any -> 443"
+		}
 
-      // Git Repository
-      GitServerVm = Node_Vm 'GitServerVm' {
-        #SharedInfra
-        technology "GitLab / GitHub Enterprise"
-        description """
-          Git repository server for source code management
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.200.0.10/24 |
-          | OS | Ubuntu 22.04 LTS |
-          | CPU | 8 vCPU |
-          | RAM | 16 GB |
-          | Storage | 500 GB SSD |
-        """
-      }
+		// Load balancer balances to monolith instances (app-to-app)
+		Prod.Dmz.ProdLbVm.lbApp -> Prod.AppTier.ProdMonolithVm01.monolithApp "Balance to primary" {
+			#Service #Routing
+			description "443 -> 8080"
+		}
+		Prod.Dmz.ProdLbVm.lbApp -> Prod.AppTier.ProdMonolithVm02.monolithApp "Balance to standby" {
+			#Service #Routing
+			description "443 -> 8080"
+		}
 
-      // CI/CD Pipeline Server
-      CicdPipelineVm = Node_Vm 'CicdPipelineVm' {
-        #SharedInfra
-        technology "GitLab CI / Jenkins"
-        description """
-          CI/CD pipeline orchestration and build coordination
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.200.0.11/24 |
-          | OS | Ubuntu 22.04 LTS |
-          | CPU | 16 vCPU |
-          | RAM | 32 GB |
-          | Storage | 1 TB SSD |
-          | Concurrent Jobs | 20 |
-        """
-      }
-
-      // Docker Registry
-      RegistryVm = Node_Vm 'RegistryVm' {
-        #SharedInfra
-        technology "Docker Registry / Harbor"
-        description """
-          Container image registry for built artifacts
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.200.0.12/24 |
-          | OS | Ubuntu 22.04 LTS |
-          | CPU | 8 vCPU |
-          | RAM | 16 GB |
-          | Storage | 5 TB SSD |
-          | Replication | 3-node cluster |
-        """
-      }
-
-      // Artifact Repository
-      ArtifactRepoVm = Node_Vm 'ArtifactRepoVm' {
-        #SharedInfra
-        technology "Nexus / Artifactory"
-        description """
-          Build artifacts and dependency repository
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.200.0.13/24 |
-          | OS | Ubuntu 22.04 LTS |
-          | CPU | 8 vCPU |
-          | RAM | 16 GB |
-          | Storage | 2 TB SSD |
-        """
-      }
-    }
-
-    // Relationships: Deployments to CI/CD infrastructure
-    CicdPipelineVm -[https]-> GitServerVm 'Pull code' {
-      #DeploymentAutomation
-      description "Pull monolith code from repository"
-    }
-
-    CicdPipelineVm -[https]-> ArtifactRepoVm 'Store artifacts' {
-      #DeploymentAutomation
-      description "Store compiled binaries and artifacts"
-    }
-
-    // CI/CD pipeline orchestrates deployments
-    CicdPipelineVm -[https]-> Prod.AppTier.ProdMonolithVm01 'Deploy Monolith (Primary)' {
-      #DeploymentAutomation
-      description "Trigger Monolith deployment to primary instance"
-    }
-
-    CicdPipelineVm -[https]-> Prod.AppTier.ProdMonolithVm02 'Deploy Monolith (Secondary)' {
-      #DeploymentAutomation
-      description "Trigger Monolith deployment to secondary instance"
-    }
-
-    CicdPipelineVm -[https]-> Prod.DataTier.ProdDatabaseVm 'Deploy Database' {
-      #DeploymentAutomation
-      description "Trigger PostgreSQL deployment and schema migrations"
-    }
-
-    // Database schema migrations from artifact repository
-    Prod.DataTier.ProdDatabaseVm -[https]-> ArtifactRepoVm 'Pull schema migrations' {
-      #DeploymentAutomation
-      description "Pull database migration scripts (Flyway/Liquibase)"
-    }
-
-    CicdPipelineVm -[https]-> Prod.DataTier.ProdNfsVm 'Deploy Storage' {
-      #DeploymentAutomation
-      description "Trigger NFS storage deployment"
-    }
-
-    // VMs pull compiled artifacts from repository
-    Prod.AppTier.ProdMonolithVm01 -[https]-> ArtifactRepoVm 'Pull binaries' {
-      #DeploymentAutomation
-      description "Pull compiled Monolith binary"
-    }
-
-    Prod.AppTier.ProdMonolithVm02 -[https]-> ArtifactRepoVm 'Pull binaries' {
-      #DeploymentAutomation
-      description "Pull compiled Monolith binary"
-    }
-
-    Prod.DataTier.ProdDatabaseVm -[https]-> ArtifactRepoVm 'Pull binaries' {
-      #DeploymentAutomation
-      description "Pull PostgreSQL binary"
-    }
-
-    Prod.DataTier.ProdNfsVm -[https]-> ArtifactRepoVm 'Pull binaries' {
-      #DeploymentAutomation
-      description "Pull NFS storage binary"
-    }
-  }
+		Prod.AppTier.ProdMonolithVm01.monolithApp -> Prod.DataTier.ProdDatabaseVm.dbApp "Persist metadata" {
+			description "any -> 5432"
+		}
+		Prod.AppTier.ProdMonolithVm02.monolithApp -> Prod.DataTier.ProdDatabaseVm.dbApp "Persist metadata (failover)" {
+			description "any -> 5432"
+		}
+		Prod.AppTier.ProdMonolithVm01.monolithApp -> Prod.DataTier.ProdNfsVm.nfsApp "Store files" {
+			description "any -> 2049"
+		}
+		Prod.AppTier.ProdMonolithVm02.monolithApp -> Prod.DataTier.ProdNfsVm.nfsApp "Store files (standby)" {
+			description "any -> 2049"
+		}
+	}
 }

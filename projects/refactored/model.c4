@@ -1,194 +1,184 @@
 model {
-  customer = Actor_Person 'Client' {
-    description 'Vault service user'
-  }
+	customer = Actor_Person 'Client' {
+		description 'Vault service user'
+	}
 
-  // User's web browser
-  browser = Container_Browser 'Web Browser' {
-    technology 'Chrome / Firefox / Safari'
-    description 'User web browser accessing the vault system'
-  }
+	// User's web browser
+	browser = Container_Browser 'Web Browser' {
+		technology 'Chrome / Firefox / Safari'
+		description 'User web browser accessing the vault system'
+	}
 
-  // --- TARGET SYSTEM ---
-  vault = System_Existing 'Secure Vault System' {
-    description 'Microservices-based secure file vault with async processing and distributed storage'
-    
-    // 0. Web Server - serves the SPA
-    webServer = Container_ApplicationServer 'Web Server' {
-      technology 'Nginx / Express'
-      description 'Serves static React SPA assets'
-      icon tech:nginx
-    }
+	// --- TARGET SYSTEM ---
+	vault = System_Existing 'Secure Vault System' {
+		description 'Microservices-based secure file vault with async processing and distributed storage'
+		
+		// 0. Web Server - serves the SPA
+		webServer = Container_ApplicationServer 'Web Server' {
+			technology 'Nginx / Express'
+			description 'Serves static React SPA assets'
+			icon tech:nginx
+		}
 
-    // 0.1 Frontend (runs in browser)
-    frontend = Container_Spa 'Web UI' {
-      technology 'React SPA'
-      description 'Single Page Application running in user browser'
-      icon tech:react
-    }
+		// 0.1 Frontend (runs in browser)
+		frontend = Container_Spa 'Web UI' {
+			technology 'React SPA'
+			description 'Single Page Application running in user browser'
+			icon tech:react
+		}
 
-    // 1. Entry Point
-    api = Container 'API Gateway' {
-      technology 'Kong / API Gateway'
-      description 'Routes requests and validates auth'
-      icon tech:kong-icon
+		// 1. Entry Point
+		api = Container 'API Gateway' {
+			technology 'Kong / API Gateway'
+			description 'Routes requests and validates auth'
+			icon tech:kong-icon
 
-      router = Component 'Router' {
-        technology 'Express Router'
-        description 'Routes incoming requests to appropriate microservices'
-      }
+			router = Component 'Router' {
+				technology 'Express Router'
+				description 'Routes incoming requests to appropriate microservices'
+			}
 
-      auth = Component 'Auth Middleware' {
-        technology 'JWT'
-        description 'Validates JWT tokens and authorizes requests'
-      }
-    }
+			auth = Component 'Auth Middleware' {
+				technology 'JWT'
+				description 'Validates JWT tokens and authorizes requests'
+			}
+		}
 
-    // 2. Upload Service
-    uploadService = Container_ApplicationServer 'Upload Service' {
-      technology 'Node.js / Express'
-      description 'Handles file uploads and validation'
-      icon tech:nodejs-icon
+		// 2. Upload Service
+		uploadService = Container_ApplicationServer 'Upload Service' {
+			technology 'Node.js / Express'
+			description 'Handles file uploads and validation'
+			icon tech:nodejs-icon
 
-      uploadHandler = Component 'Upload Handler' {
-        technology 'Multer / Express'
-        description 'Receives and validates files'
-      }
+			uploadModule = Component 'Upload Module' {
+				technology 'Multer / Express'
+				description 'Receives and validates files'
+			}
 
-      fileValidator = Component 'File Validator' {
-        technology 'File Analysis'
-        description 'Validates file type, size, and structure before queuing'
-      }
-    }
+		}
 
-    // 3. Retrieval Service (merged Document + Download)
-    retrievalService = Container_ApplicationServer 'Retrieval Service' {
-      technology 'GoLang'
-      description 'Document metadata management and file retrieval with caching'
-      icon tech:go
+		// 3. Retrieval Service (merged Document + Download)
+		retrievalService = Container_ApplicationServer 'Retrieval Service' {
+			technology 'GoLang'
+			description 'Document metadata management and file retrieval with caching'
+			icon tech:go
 
-      retrievalHandler = Component 'Retrieval Handler' {
-        technology 'HTTP Handler'
-        description 'Handles metadata queries and file retrieval requests'
-      }
+			retrievalModule = Component 'Retrieval Module' {
+				technology 'HTTP Handler'
+				description 'Handles metadata queries and file retrieval requests'
+			}
 
-      cacheManager = Component 'Cache Manager' {
-        technology 'Redis Client'
-        description 'Caches frequently accessed metadata and encryption keys'
-      }
+			metadataModule = Component 'Metadata Module' {
+				technology 'MongoDB Driver'
+				description 'Persists document metadata'
+			}
 
-      decryptor = Component 'Decryption Service' {
-        technology 'AES-256'
-        description 'Decrypts files for download'
-      }
-    }
+			minioModule = Component 'MinIO Module' {
+				technology 'S3-compatible SDK'
+				description 'Handles encrypted file storage to MinIO (not AWS S3)'
+			}
 
-    // 5. Async Buffer
-    jobs = Container_Queue 'Processing Queue' {
-	  #Queue
-      technology 'RabbitMQ'
-      description 'Async job queue for file processing tasks (scan, encrypt, store)'
-      icon tech:rabbitmq-icon
-    }
+			encryptorModule = Component 'Encryption Module' {
+				technology 'AES-256'
+				description 'Decrypts files for download'
+			}
+		}
 
-    // 6. Processing Worker
-    worker = Container_ProcessingServer 'Processing Worker' {
-      technology 'GoLang'
-      description 'Async file processing (scanning, encryption, storage)'
-      icon tech:go
+		// 5. Async Buffer
+		jobs = Container_Queue 'Processing Queue' {
+			technology 'RabbitMQ'
+			description 'Async job queue for file processing tasks (scan, encrypt, store)'
+			icon tech:rabbitmq-icon
+		}
 
-      consumer = Component 'Queue Consumer' {
-        technology 'RabbitMQ Client'
-        description 'Receives jobs from queue'
-      }
+		// 6. Processing Worker
+		worker = Container_ProcessingServer 'Processing Worker' {
+			technology 'GoLang'
+			description 'Async file processing (scanning, encryption, storage)'
+			icon tech:go
 
-      orchestrator = Component 'Job Orchestrator' {
-        technology 'Workflow Engine'
-        description 'Coordinates processing steps and error handling'
-      }
+			consumerModule = Component 'Queue Consumer Module' {
+				technology 'RabbitMQ Client'
+				description 'Receives jobs from queue '
+			}
 
-      scannerClient = Component 'Virus Scanner Client' {
-        technology 'VirusTotal SDK'
-        description 'Anti-virus scanning integration'
-      }
+			orchestratorModule = Component 'Processing Module' {
+				technology 'Workflow Engine'
+				description 'and coordinates processing steps and error handling'
+			}
 
-      encryptor = Component 'Encryption Service' {
-        technology 'AES-256 GCM'
-        description 'Encrypts files before storage'
-      }
+			scannerModule = Component 'Virus Scanner Module' {
+				technology 'VirusTotal SDK'
+				description 'Anti-virus scanning integration'
+			}
+			
+			encryptorModule = Component 'Encryption Module' {
+				technology 'AES-256 GCM'
+				description 'Encrypts files before storage'
+			}
 
-      minioClient = Component 'MinIO Client' {
-        technology 'S3-compatible SDK'
-        description 'Handles encrypted file storage to MinIO (not AWS S3)'
-      }
+			minioModule = Component 'MinIO Module' {
+				technology 'S3-compatible SDK'
+				description 'Handles encrypted file storage to MinIO (not AWS S3)'
+			}
 
-      metadataWriter = Component 'Metadata Writer' {
-        technology 'MongoDB Driver'
-        description 'Persists document metadata'
-      }
+			metadataModule = Component 'Metadata Module' {
+				technology 'MongoDB Driver'
+				description 'Persists document metadata'
+			}
+		}
 
-      errorHandler = Component 'Error Handler' {
-        technology 'Dead Letter Queue'
-        description 'Manages failed jobs and retries'
-      }
-    }
+		// 7. Persistence
+		docDB = Container_Database 'Document DB' {
+			technology 'MongoDB'
+			icon tech:mongodb-icon
+		}
 
-    // 7. Persistence
-    docDB = Container_Database 'Document DB' {
-      technology 'MongoDB'
-      icon tech:mongodb-icon
-    }
-  }
+		// --- INTERNAL STORAGE ---
+		minio = System_Existing 'MinIO Object Storage' {
+			description 'Primary encrypted object storage (on-premises) with 3-node replication'
+		}
+	}
 
-  // --- INTERNAL STORAGE ---
-  minio = System_Existing 'MinIO Object Storage' {
-    description 'Primary encrypted object storage (on-premises) with 3-node replication'
-  }
+	// --- EXTERNAL DEPENDENCIES (Cloud / SaaS) ---
+	scanner = System_External 'VirusTotal API' {
+		description 'SaaS Antivirus'
+	}
 
-  // --- EXTERNAL DEPENDENCIES (Cloud / SaaS) ---
-  scanner = System_External 'VirusTotal API' {
-    description 'SaaS Antivirus'
-  }
+	// --- REFACTORED RELATIONSHIPS ---
+	
+	// Client Access
+	customer -[calls]-> browser 'Uses web browser'
+	browser -[calls]-> vault.webServer 'Loads React SPA (HTML/JS/CSS)'
+	browser -[calls]-> vault.frontend 'SPA runs in browser'
+	vault.frontend -[calls]-> vault.api.router 'Makes API requests'
 
-  // --- REFACTORED RELATIONSHIPS ---
-  
-  // Client Access
-  customer -[calls]-> browser 'Uses web browser'
-  browser -[calls]-> vault.webServer 'Loads React SPA (HTML/JS/CSS)'
-  browser -[calls]-> vault.frontend 'SPA runs in browser'
-  vault.frontend -[calls]-> vault.api 'Makes API requests'
+	// API Gateway Internal
+	vault.api.router -[uses]-> vault.api.auth 'Authenticate requests'
 
-  // API Gateway Internal
-  vault.api.router -[uses]-> vault.api.auth 'Authenticate requests'
+	// Upload Flow - Validation BEFORE queuing (fail-fast)
+	vault.api.router -[calls]-> vault.uploadService.uploadModule 'Route upload requests to upload module'
+	vault.uploadModule -[async]-> jobs 'Queue validated file for processing'
 
-  // Upload Flow - Validation BEFORE queuing (fail-fast)
-  vault.api.router -[calls]-> uploadService 'Route upload requests'
-  vault.uploadService.uploadHandler -[uses]-> vault.uploadService.fileValidator 'Validate file'
-  vault.uploadService.fileValidator -[async]-> jobs 'Queue validated file for processing'
-
-  // Worker Processing (Event-Driven - NO API calls TO worker)
-  vault.worker.consumer -[async]-> jobs 'Consume upload jobs'
-  vault.worker.consumer -[uses]-> vault.worker.orchestrator 'Delegate job'
-  
-  // Orchestrated Processing Pipeline (validation already done)
-  vault.worker.orchestrator -[uses]-> vault.worker.scannerClient 'Scan for viruses'
-  vault.worker.scannerClient -[calls]-> scanner 'Anti-virus check'
-  vault.worker.orchestrator -[uses]-> vault.worker.encryptor 'Encrypt clean file'
-  vault.worker.encryptor -[writes]-> docDB 'Store encryption key'
-  vault.worker.orchestrator -[uses]-> vault.worker.minioClient 'Store file'
-  vault.worker.minioClient -[writes]-> minio 'Save encrypted file (primary)'
-  vault.worker.orchestrator -[uses]-> vault.worker.metadataWriter 'Update status'
-  vault.worker.metadataWriter -[writes]-> docDB 'Save metadata as READY'
-  
-  // Error Handling
-  vault.worker.orchestrator -[uses]-> vault.worker.errorHandler 'On failure'
-  vault.worker.errorHandler -[writes]-> docDB 'Mark as FAILED'
-
-  // Retrieval Flow - Unified service with caching
-  vault.api.router -[calls]-> retrievalService 'Route list/download requests'
-  vault.retrievalService.retrievalHandler -[uses]-> vault.retrievalService.cacheManager 'Check cache'
-  vault.retrievalService.cacheManager -[reads]-> docDB 'Cache miss: fetch metadata'
-  vault.retrievalService.retrievalHandler -[reads]-> minio 'Fetch encrypted file (primary)'
-  vault.retrievalService.retrievalHandler -[uses]-> vault.retrievalService.decryptor 'Decrypt file'
-  vault.retrievalService.decryptor -[uses]-> vault.retrievalService.cacheManager 'Retrieve encryption key'
+	// Worker Processing (Event-Driven - NO API calls TO worker)
+	vault.worker.consumerModule -[async]-> jobs 'Consume upload jobs'
+	vault.worker.consumerModule -[uses]-> vault.worker.orchestratorModule 'Delegate job'
+	
+	// Orchestrated Processing Pipeline (validation already done)
+	vault.worker.orchestratorModule -[uses]-> vault.worker.scannerModule 'Scan for viruses'
+	vault.worker.scannerModule -[calls]-> scanner 'Anti-virus check'
+	vault.worker.orchestratorModule -[uses]-> vault.worker.encryptorModule 'Encrypt clean file'
+	vault.worker.encryptorModule -[writes]-> docDB 'Store encryption key'
+	vault.worker.orchestratorModule -[uses]-> vault.worker.minioModule 'Store file'
+	vault.worker.minioModule -[writes]-> minio 'Save encrypted file (primary)'
+	vault.worker.orchestratorModule -[uses]-> vault.worker.metadataModule 'Update status'
+	vault.worker.metadataModule -[writes]-> docDB 'Save metadata as READY'
+	
+	// Retrieval Flow - Unified service with caching
+	vault.api.router -[calls]-> vault.retrievalService.retrievalModule 'Route list/download requests to retrieval module'
+	vault.retrievalService.retrievalModule -[uses]-> vault.retrievalService.metadataModule 'Get metadata'
+	vault.retrievalService.metadataModule -[reads]-> docDB 'Fetch metadata'
+	vault.retrievalService.retrievalModule -[uses]-> vault.retrievalService.minioModule 'Fetch encrypted file'
+	vault.retrievalService.minioModule -[reads]-> minio 'Fetch encrypted file (primary)'
+	vault.retrievalService.retrievalModule -[uses]-> vault.retrievalService.encryptorModule 'Decrypt file'
 }

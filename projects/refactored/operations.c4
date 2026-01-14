@@ -1,0 +1,299 @@
+// --- REFACTORED OPERATIONS DEPLOYMENT ---
+// Security, monitoring, backup and disaster recovery infrastructure
+
+deployment {
+	// Security Zone - Monitoring and observability
+	extend Prod {
+
+		// Security Zone - Monitoring and observability
+		SecZone = Zone "Security & Monitoring (VLAN 104: 10.4.0.0/24)" {
+			#Security
+			description """
+			  Monitoring, logging, and observability infrastructure
+			  Firewall is implicit at zone boundary
+			  
+			  | Property | Value |
+			  |:---------|:------|
+			  | VLAN | 104 |
+			  | Network | 10.4.0.0/24 |
+			  | Gateway | 10.4.0.1 |
+			"""
+			
+			// Monitoring VM
+			Monitoring = Node_Vm "monitoring" {
+				#SharedInfra
+				technology "Prometheus + Grafana + ELK"
+				description """
+				Metrics, logs, and alerting
+				
+				| Property | Value |
+				|:---------|:------|
+				| eth0 | 10.4.0.19/24 |
+				| OS | Ubuntu 22.04 LTS |
+				| CPU | 4 vCPU |
+				| RAM | 16 GB |
+				| Disk | 2 TB SSD |
+			  """
+			}
+		}
+	  
+		// Infrastructure Zone - Backup and disaster recovery
+		InfraZone = Zone "Backup & Disaster Recovery (VLAN 105: 10.5.0.0/24)" {
+			description """
+			  Backup, replication, and disaster recovery infrastructure
+			  
+			  | Property | Value |
+			  |:---------|:------|
+			  | VLAN | 105 |
+			  | Network | 10.5.0.0/24 |
+			  | Gateway | 10.5.0.1 |
+			"""
+			
+			// Backup VM
+			Backup = Node_Vm "backup" {
+				technology "Bacula / Veeam"
+				description """
+				Offsite backup and disaster recovery
+				
+				| Property | Value |
+				|:---------|:------|
+				| eth0 | 10.5.0.20/24 |
+				| OS | Ubuntu 22.04 LTS |
+				| CPU | 4 vCPU |
+				| RAM | 8 GB |
+				| Disk | 10 TB HDD |
+				| Retention | 30 days |
+			  """
+			}
+		}
+		  
+  // Security and monitoring flows
+		Monitoring -[tcp]-> ProdApigwVm "Scrape metrics" {
+			#Monitoring #Observability
+			description "any -> 9090"
+		}
+		Monitoring -[tcp]-> ProdUploadVm "Scrape metrics" {
+			#Monitoring #Observability
+			description "any -> 9090"
+		}
+		Monitoring -[tcp]-> ProdRetrievalVm "Scrape metrics" {
+			#Monitoring #Observability
+			description "any -> 9090"
+		}
+		Monitoring -[tcp]-> ProdWorkerVm "Scrape metrics" {
+			#Monitoring #Observability
+			description "any -> 9090"
+		}
+		Monitoring -[tcp]-> ProdQueueVm "Scrape metrics" {
+			#Monitoring #Observability
+			description "any -> 15672 (RabbitMQ mgmt)"
+		}
+		Monitoring -[tcp]-> ProdDatabaseVm "Scrape metrics" {
+			#Monitoring #Observability
+			description "any -> 27017 (MongoDB metrics)"
+		}
+		Monitoring -[tcp]-> ProdStorageVm "Scrape metrics" {
+			description "any -> 9000 (MinIO metrics)"
+		}
+	  
+  // Backup and disaster recovery flows
+		Backup -[tcp]-> ProdDatabaseVm "Backup database" {
+			#Backup #Recovery
+			description "any -> 27017 (MongoDB dump)"
+		}
+		Backup -[tcp]-> ProdStorageVm "Backup objects" {
+			#Backup #Recovery
+			description "any -> 9000-9001 (MinIO replication)"
+		}
+	}
+	  
+	// CI/CD Infrastructure
+	Node_Environment Cicd "CI/CD Pipeline Infrastructure" {
+		#Cicd
+		description """
+			Continuous Integration and Continuous Deployment infrastructure
+			for automated testing and deployment of microservices
+		  """
+
+		CicdZone = Zone "CI/CD Prod (VLAN 200: 10.200.0.0/24)" {
+			#Pipeline
+			description """
+			  Development and deployment automation tools
+			  
+			  | Property | Value |
+			  |:---------|:------|
+			  | VLAN | 200 |
+			  | Network | 10.200.0.0/24 |
+			  | Gateway | 10.200.0.1 |
+			"""
+	  
+			// Git Repository
+			GitServerVm = Node_Vm "git-server-vm" {
+				#SharedInfra
+				technology "GitLab / GitHub Enterprise"
+				description """
+				Git repository server for source code management
+				
+				| Property | Value |
+				|:---------|:------|
+				| eth0 | 10.200.0.10/24 |
+				| OS | Ubuntu 22.04 LTS |
+				| CPU | 8 vCPU |
+				| RAM | 16 GB |
+				| Storage | 500 GB SSD |
+			  """
+			}
+	  
+			// CI/CD Pipeline Server
+			CicdPipelineVm = Node_Vm "cicd-pipeline-vm" {
+				#SharedInfra
+				technology "GitLab CI / Jenkins"
+				description """
+				CI/CD pipeline orchestration and build coordination
+				
+				| Property | Value |
+				|:---------|:------|
+				| eth0 | 10.200.0.11/24 |
+				| OS | Ubuntu 22.04 LTS |
+				| CPU | 16 vCPU |
+				| RAM | 32 GB |
+				| Storage | 1 TB SSD |
+				| Concurrent Jobs | 20 |
+			  """
+			}
+	  
+			// Docker Registry
+			RegistryVm = Node_Vm "registry-vm" {
+				#SharedInfra
+				technology "Docker Registry / Harbor"
+				description """
+				Container image registry for built artifacts
+				
+				| Property | Value |
+				|:---------|:------|
+				| eth0 | 10.200.0.12/24 |
+				| OS | Ubuntu 22.04 LTS |
+				| CPU | 8 vCPU |
+				| RAM | 16 GB |
+				| Storage | 5 TB SSD |
+				| Replication | 3-node cluster |
+			  """
+			}
+	  
+			// Artifact Repository
+			ArtifactRepoVm = Node_Vm "artifact-repo-vm" {
+				#SharedInfra
+				technology "Nexus / Artifactory"
+				description """
+				Build artifacts and dependency repository
+				
+				| Property | Value |
+				|:---------|:------|
+				| eth0 | 10.200.0.13/24 |
+				| OS | Ubuntu 22.04 LTS |
+				| CPU | 8 vCPU |
+				| RAM | 16 GB |
+				| Storage | 2 TB SSD |
+			  """
+			}
+		}
+	  
+  // Relationships: Deployments to CI/CD infrastructure
+		CicdPipelineVm -[https]-> GitServerVm "Pull code" {
+			#DeploymentAutomation
+			description "Pull microservice code from repository"
+		}
+
+		CicdPipelineVm -[https]-> RegistryVm "Push images" {
+			#DeploymentAutomation
+			description "Push built container images to registry"
+		}
+
+		CicdPipelineVm -[https]-> ArtifactRepoVm "Store artifacts" {
+			#DeploymentAutomation
+			description "Store build artifacts and dependencies"
+		}
+	  
+  // CI/CD pipeline orchestrates deployments
+		CicdPipelineVm -[https]-> Prod.Dmz.ProdApigwVm "Deploy API Gateway" {
+			#DeploymentAutomation
+			description "Trigger Kong deployment to API Gateway"
+		}
+
+		CicdPipelineVm -[https]-> Prod.Dmz.ProdWebServerVm "Deploy Web Server" {
+			#DeploymentAutomation
+			description "Deploy SPA assets to web server"
+		}
+
+		CicdPipelineVm -[https]-> Prod.AppTier.ProdUploadVm "Deploy Upload Service" {
+			#DeploymentAutomation
+			description "Trigger Upload Service deployment"
+		}
+
+		CicdPipelineVm -[https]-> Prod.AppTier.ProdRetrievalVm "Deploy Retrieval Service" {
+			#DeploymentAutomation
+			description "Trigger Retrieval Service deployment"
+		}
+
+		CicdPipelineVm -[https]-> Prod.ProcTier.ProdWorkerVm "Deploy Worker" {
+			#DeploymentAutomation
+			description "Trigger Worker deployment"
+		}
+
+		CicdPipelineVm -[https]-> Prod.ProcTier.ProdQueueVm "Deploy Queue" {
+			#DeploymentAutomation
+			description "Trigger RabbitMQ deployment"
+		}
+
+		CicdPipelineVm -[https]-> Prod.DataTier.ProdDatabaseVm "Deploy Database" {
+			#DeploymentAutomation
+			description "Trigger MongoDB deployment and schema migrations"
+		}
+	  
+  // Database schema migrations from artifact repository
+		Prod.DataTier.ProdDatabaseVm -[https]-> ArtifactRepoVm "Pull schema migrations" {
+			#DeploymentAutomation
+			description "Pull database migration scripts (MongoDB migrations)"
+		}
+
+		CicdPipelineVm -[https]-> Prod.DataTier.ProdStorageVm "Deploy Storage" {
+			#DeploymentAutomation
+			description "Trigger MinIO deployment"
+		}
+
+		Prod.Dmz.ProdWebServerVm -[https]-> ArtifactRepoVm "Pull SPA assets" {
+			#DeploymentAutomation
+			description "Pull built React SPA static files"
+		}
+
+		Prod.AppTier.ProdUploadVm -[https]-> RegistryVm "Pull Upload image" {
+			#DeploymentAutomation
+			description "Pull container image from registry"
+		}
+
+		Prod.AppTier.ProdRetrievalVm -[https]-> RegistryVm "Pull Retrieval image" {
+			#DeploymentAutomation
+			description "Pull container image from registry"
+		}
+
+		Prod.ProcTier.ProdWorkerVm -[https]-> RegistryVm "Pull Worker image" {
+			#DeploymentAutomation
+			description "Pull container image from registry"
+		}
+
+		Prod.ProcTier.ProdQueueVm -[https]-> RegistryVm "Pull Queue image" {
+			#DeploymentAutomation
+			description "Pull RabbitMQ image from registry"
+		}
+
+		Prod.DataTier.ProdDatabaseVm -[https]-> RegistryVm "Pull Database image" {
+			#DeploymentAutomation
+			description "Pull MongoDB image from registry"
+		}
+
+		Prod.DataTier.ProdStorageVm -[https]-> RegistryVm "Pull Storage image" {
+			#DeploymentAutomation
+			description "Pull MinIO image from registry"
+		}
+	}
+}

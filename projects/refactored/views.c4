@@ -2,118 +2,109 @@
 
 views {
 
-  // Context View: System and external actors
-  view c1_context {
-    title 'C1 / Secure Vault System'
-    include customer
-    include browser
-    include vault
-    include minio
-    include scanner
-    
-    rank source {
-      customer
-    }
-    
-    rank sink {
-      minio,
-      scanner
-    }
-  }
+	// Context View: System and external actors
+	view c1_context {
+		title 'C1 / Secure Vault System'
+		include customer
+		include browser
+		include vault
+		include scanner
+		
+		rank source {
+			customer
+		}
+		
+		rank sink {
+			scanner
+		}
+	}
 
-  // Container View: Inside the vault system
-  view c2_container {
-    title 'C2 / Vault System Internals'
-    include customer
-    include browser
-    include vault.*
-    include minio
-    include scanner
-    
-    rank source {
-      customer
-    }
-    
-    rank sink {
-      minio,
-      scanner
-    }
-  }
+	// Container View: Inside the vault system
+	view c2_container {
+		title 'C2 / Vault System Internals'
+		include customer
+		include browser
+		include vault.*
+		include scanner
+		
+		rank source {
+			customer
+		}
+		
+		rank sink {
+			scanner
+		}
+	}
 
-  // Component View: Frontend internals
-  view c3_frontend {
-    title 'C3 / Frontend'
-    include customer
-    include browser
-    include vault.*
-    include vault.frontend.*
-    include minio
-    include scanner
-    
-    rank source {
-      customer
-    }
-    
-    rank sink {
-      minio,
-      scanner
-    }
-  }
+	// Component View: Frontend internals
+	view c3_frontend {
+		title 'C3 / Frontend'
+		include customer
+		include browser
+		include vault.*
+		include vault.frontend.*
+		include scanner
+		
+		rank source {
+			customer
+		}
+		
+		rank sink {
+			scanner
+		}
+	}
 
-  // Component View: Upload Service internals
-  view c3_upload_service {
-    title 'C3 / Upload Service'
-    include customer
-    include vault.*
-    include vault.uploadService.*
-    include minio
-    include scanner
-    
-    rank source {
-      customer
-    }
-    
-    rank sink {
-      minio,
-      scanner
-    }
-  }
+	// Component View: Upload Service internals
+	view c3_upload_service {
+		title 'C3 / Upload Service'
+		include customer
+		include vault.*
+		include vault.uploadService.*
+		include vault.minio.*
+		include scanner
+		
+		rank source {
+			customer
+		}
+		
+		rank sink {
+			scanner
+		}
+	}
 
-  // Component View: Retrieval Service internals (merged Document + Download)
-  view c3_retrieval_service {
-    title 'C3 / Retrieval Service'
-    include customer
-    include vault.*
-    include vault.retrievalService.*
-    include minio
-    include scanner
-    
-    rank source {
-      customer
-    }
-    
-    rank sink {
-      minio,
-      scanner
-    }
-  }
+	// Component View: Retrieval Service internals (merged Document + Download)
+	view c3_retrieval_service {
+		title 'C3 / Retrieval Service'
+		include customer
+		include vault.*
+		include vault.retrievalService.*
+		include vault.minio.*
+		include scanner
+		
+		rank source {
+			customer
+		}
+		
+		rank sink {
+			scanner
+		}
+	}
 
-  // Component View: Processing Worker internals
-  view c3_processing_worker {
-    title 'C3 / Processing Worker'
-    include customer
-    include vault.*
-    include vault.worker.*
-    include minio
-    include scanner
-    
-    rank source {
-      customer
-    }
-    
-    rank sink {
-      minio,
-      scanner
-    }
-  }
+	// Component View: Processing Worker internals
+	view c3_processing_worker {
+		title 'C3 / Processing Worker'
+		include customer
+		include vault.*
+		include vault.worker.*
+		include vault.minio.*
+		include scanner
+		
+		rank source {
+			customer
+		}
+		
+		rank sink {
+			scanner
+		}
+	}
 }

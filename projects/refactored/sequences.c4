@@ -3,87 +3,105 @@
 
 views {
 
-  // Upload/Processing Flow
-  dynamic view usecases_upload_flow {
-    title 'Use Cases / Upload'
-    
-    customer -> browser 'Upload file'
-    browser -> vault.webServer 'Load SPA (if needed)'
-    vault.webServer -> browser 'Serve React SPA'
-    browser -> vault.frontend 'SPA loaded in browser'
-    vault.frontend -> vault.api 'POST /api/upload'
-    vault.api -> vault.uploadService 'Route to upload service'
-    vault.uploadService -> vault.uploadService 'Validate file (fail-fast)'
-    vault.uploadService -> vault.jobs 'Publish FileValidated'
-    
-    vault.worker.consumer -> vault.jobs 'Consume message'
-    vault.worker.consumer -> vault.worker.orchestrator 'Delegate job'
-    vault.worker.orchestrator -> vault.worker.scannerClient 'Scan for viruses'
-    vault.worker.scannerClient -> scanner 'Check file'
-    scanner -> vault.worker.scannerClient 'Clean'
-    vault.worker.scannerClient -> vault.worker.orchestrator 'Scan passed'
-    vault.worker.orchestrator -> vault.worker.encryptor 'Encrypt file'
-    vault.worker.encryptor -> vault.docDB 'Store encryption key'
-    vault.docDB -> vault.worker.encryptor 'Key saved'
-    vault.worker.encryptor -> vault.worker.orchestrator 'Encrypted'
-    vault.worker.orchestrator -> vault.worker.minioClient 'Store file'
-    vault.worker.minioClient -> minio 'Put encrypted object (primary)'
-    minio -> vault.worker.minioClient 'Stored'
-    vault.worker.minioClient -> vault.worker.orchestrator 'Confirm'
-    vault.worker.orchestrator -> vault.worker.metadataWriter 'Update status'
-    vault.worker.metadataWriter -> vault.docDB 'Set READY'
-    vault.docDB -> vault.worker.metadataWriter 'Done'
-  }
+	// Upload/Processing Flow
+	dynamic view usecases_upload_flow {
+		title 'Use Cases / Upload'
+		
+		customer -> browser 'Upload file'
+		browser -> vault.webServer 'Load SPA (if needed)'
+		vault.webServer -> browser 'Serve React SPA'
+		browser -> vault.frontend 'SPA loaded in browser'
+		vault.frontend -> vault.api.router 'POST /api/upload'
+		vault.api.router -> vault.api.auth 'Authenticate'
+		vault.api.router -> vault.uploadService.uploadModule 'Route to upload module'
+		vault.uploadService.uploadModule -> vault.uploadService.uploadModule 'Validate file (fail-fast)'
+		vault.uploadService.uploadModule -> vault.jobs 'Publish FileValidated'
+		
+		vault.worker.consumerModule -> vault.jobs 'Consume message'
+		vault.worker.consumerModule -> vault.worker.orchestratorModule 'Delegate job'
+		vault.worker.orchestratorModule -> vault.worker.scannerModule 'Scan for viruses'
+		vault.worker.scannerModule -> scanner 'Check file'
+		scanner -> vault.worker.scannerModule 'Clean'
+		vault.worker.scannerModule -> vault.worker.orchestratorModule 'Scan passed'
+		vault.worker.orchestratorModule -> vault.worker.encryptorModule 'Encrypt file'
+		vault.worker.encryptorModule -> vault.docDB 'Store encryption key'
+		vault.docDB -> vault.worker.encryptorModule 'Key saved'
+		vault.worker.encryptorModule -> vault.worker.orchestratorModule 'Encrypted'
+		vault.worker.orchestratorModule -> vault.worker.minioModule 'Store file'
+		vault.worker.minioModule -> vault.minio 'Put encrypted object (primary)'
+		vault.minio -> vault.worker.minioModule 'Stored'
+		vault.worker.minioModule -> vault.worker.orchestratorModule 'Confirm'
+		vault.worker.orchestratorModule -> vault.worker.metadataModule 'Update status'
+		vault.worker.metadataModule -> vault.docDB 'Set READY'
+		vault.docDB -> vault.worker.metadataModule 'Done'
+	}
 
-  // Retrieval/Download Flow
-  dynamic view usecases_retrieval_flow {
-    title 'Use Cases / Retrieval'
-    
-    customer -> browser 'View documents'
-    browser -> vault.frontend 'SPA (already loaded)'
-    vault.frontend -> vault.api 'GET /api/documents'
-    vault.api -> vault.retrievalService 'Route to retrieval service'
-    vault.retrievalService -> vault.retrievalService 'Check cache'
-    vault.retrievalService -> vault.docDB 'Query documents (cache miss)'
-    vault.docDB -> vault.retrievalService 'Return list'
-    
-    customer -> browser 'Download document'
-    browser -> vault.frontend 'SPA action'
-    vault.frontend -> vault.api 'GET /api/document/{id}'
-    vault.api -> vault.retrievalService 'Route to retrieval service'
-    vault.retrievalService -> vault.retrievalService 'Check cache'
-    vault.retrievalService -> vault.docDB 'Get metadata (cache miss)'
-    vault.docDB -> vault.retrievalService 'File location'
-    vault.retrievalService -> minio 'Get encrypted object (primary)'
-    minio -> vault.retrievalService 'Encrypted data'
-    vault.retrievalService -> vault.docDB 'Get encryption key'
-    vault.docDB -> vault.retrievalService 'Return key'
-    vault.retrievalService -> vault.retrievalService 'Decrypt file'
-  }
+	// Retrieval/Download Flow
+	dynamic view usecases_retrieval_flow {
+		title 'Use Cases / Retrieval'
+		
+		customer -> browser 'View documents'
+		browser -> vault.frontend 'SPA (already loaded)'
+		vault.frontend -> vault.api.router 'GET /api/documents'
+		vault.api.router -> vault.api.auth 'Authenticate'
+		vault.api.router -> vault.retrievalService.retrievalModule 'Route to retrieval module'
+		vault.retrievalService.retrievalModule -> vault.retrievalService.metadataModule 'Check cache'
+		vault.retrievalService.metadataModule -> vault.docDB 'Query documents (cache miss)'
+		vault.docDB -> vault.retrievalService.metadataModule 'Return list'
+		vault.retrievalService.metadataModule -> vault.retrievalService.retrievalModule 'Return cached/queried list'
+		vault.retrievalService.retrievalModule -> vault.api.router 'Return documents'
+		vault.api.router -> vault.frontend 'Send documents'
+		
+		customer -> browser 'Download document'
+		browser -> vault.frontend 'SPA action'
+		vault.frontend -> vault.api.router 'GET /api/document/{id}'
+		vault.api.router -> vault.api.auth 'Authenticate'
+		vault.api.router -> vault.retrievalService.retrievalModule 'Route to retrieval module'
+		vault.retrievalService.retrievalModule -> vault.retrievalService.metadataModule 'Check cache'
+		vault.retrievalService.metadataModule -> vault.docDB 'Get metadata (cache miss)'
+		vault.docDB -> vault.retrievalService.metadataModule 'File location'
+		vault.retrievalService.retrievalModule -> vault.retrievalService.minioModule 'Get encrypted object (primary)'
+		vault.retrievalService.minioModule -> vault.minio 'Fetch encrypted object'
+		vault.minio -> vault.retrievalService.minioModule 'Encrypted data'
+		vault.retrievalService.minioModule -> vault.retrievalService.retrievalModule 'Return encrypted data'
+		vault.retrievalService.encryptorModule -> vault.retrievalService.metadataModule 'Get encryption key from DB'
+		vault.retrievalService.metadataModule -> vault.docDB 'Fetch key'
+		vault.docDB -> vault.retrievalService.metadataModule 'Return key'
+		vault.retrievalService.encryptorModule -> vault.retrievalService.retrievalModule 'Decrypt file'
+		vault.retrievalService.retrievalModule -> vault.api.router 'Return file'
+		vault.api.router -> vault.frontend 'Send file'
+	}
 
-  // Backup & Disaster Recovery Flow
-  dynamic view usecases_backup_flow {
-    title 'Use Cases / MinIO HA Replication'
-    description 'MinIO 3-node distributed replication ensures high availability and fault tolerance'
-    
-    vault.worker.orchestrator -> vault.worker.minioClient 'Store file'
-    vault.worker.minioClient -> minio 'Put encrypted object'
-    minio -> minio 'Replicate across 3-node cluster'
-    minio -> vault.worker.minioClient 'Replication complete'
-    vault.worker.minioClient -> vault.worker.orchestrator 'Stored & replicated'
-    
-    customer -> browser 'Request download'
-    browser -> vault.frontend 'SPA action'
-    vault.frontend -> vault.api 'GET /api/document/{id}'
-    vault.api -> vault.retrievalService 'Route to retrieval'
-    vault.retrievalService -> vault.retrievalService 'Check cache'
-    vault.retrievalService -> vault.docDB 'Get metadata (cache miss)'
-    vault.docDB -> vault.retrievalService 'File location'
-    vault.retrievalService -> minio 'Fetch encrypted object'
-    minio -> vault.retrievalService 'File from cluster'
-    vault.retrievalService -> vault.retrievalService 'Decrypt file'
-    vault.retrievalService -> vault.api 'Decrypted file (cached)'
-    vault.api -> vault.frontend 'Send file'
-    vault.frontend -> customer 'Download complete'
-  }
+	// Backup & Disaster Recovery Flow
+	dynamic view usecases_backup_flow {
+		title 'Use Cases / MinIO HA Replication'
+		description 'MinIO 3-node distributed replication ensures high availability and fault tolerance'
+		
+		vault.worker.orchestratorModule -> vault.worker.minioModule 'Store file'
+		vault.worker.minioModule -> vault.minio 'Put encrypted object'
+		vault.minio -> vault.minio 'Replicate across 3-node cluster'
+		vault.minio -> vault.worker.minioModule 'Replication complete'
+		vault.worker.minioModule -> vault.worker.orchestratorModule 'Stored & replicated'
+		
+		customer -> browser 'Request download'
+		browser -> vault.frontend 'SPA action'
+		vault.frontend -> vault.api.router 'GET /api/document/{id}'
+		vault.api.router -> vault.api.auth 'Authenticate'
+		vault.api.router -> vault.retrievalService.retrievalModule 'Route to retrieval module'
+		vault.retrievalService.retrievalModule -> vault.retrievalService.metadataModule 'Check cache'
+		vault.retrievalService.metadataModule -> vault.docDB 'Get metadata (cache miss)'
+		vault.docDB -> vault.retrievalService.metadataModule 'File location'
+		vault.retrievalService.retrievalModule -> vault.retrievalService.minioModule 'Fetch encrypted object'
+		vault.retrievalService.minioModule -> vault.minio 'Fetch from cluster'
+		vault.minio -> vault.retrievalService.minioModule 'Encrypted data'
+		vault.retrievalService.minioModule -> vault.retrievalService.retrievalModule 'Return encrypted data'
+		vault.retrievalService.encryptorModule -> vault.retrievalService.metadataModule 'Get encryption key from DB'
+		vault.retrievalService.metadataModule -> vault.docDB 'Fetch key'
+		vault.docDB -> vault.retrievalService.metadataModule 'Return key'
+		vault.retrievalService.retrievalModule -> vault.retrievalService.encryptorModule 'Decrypt file'
+		vault.retrievalService.encryptorModule -> vault.retrievalService.retrievalModule 'Decrypted file (cached)'
+		vault.retrievalService.retrievalModule -> vault.api.router 'Return file'
+		vault.api.router -> vault.frontend 'Send file'
+		vault.frontend -> customer 'Download complete'
+	}
 }

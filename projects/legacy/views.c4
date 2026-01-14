@@ -1,55 +1,57 @@
 // --- VIEWS (What we display) ---
 views {
 
-  // Context View: System and external actors
-  view c1_context {
-    title 'C1 / Secure Vault System'
-    include customer
-    include browser
-    include vault
-    include customer -> vault
-    
-    rank source {
-      customer
-    }
-  }
+	// Context View: System and external actors
+	view c1_context {
+		title 'C1 / Secure Vault System'
+		include customer
+		include browser
+		include vault
+		include customer -> vault
+		
+		rank source {
+			customer
+		}
+	}
 
-  // Container View: Inside the vault system
-  view c2_container {
-    title 'C2 / Vault System Internals'
-    include customer
-    include browser
-    include vault.*
-    
-    rank source {
-      customer
-    }
-  }
+	// Container View: Inside the vault system
+	view c2_container {
+		title 'C2 / Vault System Internals'
+		include customer
+		include browser
+		include vault.*
+		
+		rank source {
+			customer
+		}
+	}
 
-  // Component View: Frontend internals
-  view c3_frontend {
-    title 'C3 / Frontend'
-    include customer
-    include browser
-    include vault.monolith
-    include vault.monolith.frontend
-    include vault.monolith.frontend.*
-    
-    rank source {
-      customer
-    }
-  }
+	// Component View: Frontend internals
+	view c3_frontend {
+		title 'C3 / Frontend'
+		include customer
+		include browser
+		include vault.monolith
+		include vault.frontend.*
+		include vault.loadBalancer.**, 
+		-> vault.**
+		
+		rank source {
+			customer
+		}
+	}
 
-  // Component View: Monolith details
-  view c3_monolith_components {
-    title 'C3 / Monolith'
-    include customer
-    include browser
-    include vault.*
-    include vault.monolith.*
-    
-    rank source {
-      customer
-    }
-  }
+	// Component View: Monolith details
+	view c3_monolith_components {
+		title 'C3 / Monolith'
+		include customer
+		include browser
+		include vault.*
+		include vault.monolith.**
+		include vault.monolith.** -> *
+		
+		rank source {
+			customer
+		}
+	}
 }

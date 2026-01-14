@@ -40,9 +40,6 @@ specification {
 	}
 
 	// Infrastructure category tags (with semantic colors)
-	tag Infrastructure {
-		color rgb(2, 132, 199)
-	}
 	tag Networking {
 		color rgb(37, 99, 235)
 	}
@@ -148,7 +145,7 @@ specification {
 
 	// Deployment node kinds (PascalCase with full styling)
 	deploymentNode Zone {
-		#Zone
+		#Zone #Networking
 		notation 'Network zone'
 		style {
 			opacity 10%
@@ -166,7 +163,7 @@ specification {
 		}
 	}
 	deploymentNode Zone_Vlan {
-		#Zone #Vlan
+		#Zone #Vlan #Networking
 		notation 'VLAN'
 		style {
 			opacity 10%
@@ -175,7 +172,7 @@ specification {
 		}
 	}
 	deploymentNode Zone_Lan {
-		#Zone #Lan
+		#Zone #Lan #Networking
 		notation 'Physical LAN'
 		style {
 			opacity 10%
@@ -184,7 +181,7 @@ specification {
 		}
 	}
 	deploymentNode Zone_Subnet {
-		#Zone #Subnet
+		#Zone #Subnet #Networking
 		notation 'Subnet'
 		style {
 			opacity 10%
@@ -247,6 +244,15 @@ specification {
 		style {
 			shape rectangle
 			icon @/software.svg
+		}
+	}
+	
+	deploymentNode Node_External {
+		#Node #External
+		notation 'External service or system'
+		style {
+			color secondary
+			icon bootstrap:cloud
 		}
 	}
 	

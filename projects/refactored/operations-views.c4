@@ -1,0 +1,46 @@
+// --- OPERATIONS VIEWS ---
+// Monitoring, security, backup and disaster recovery diagrams
+
+views 'Operations' {
+	deployment view security {
+	  title 'Security & Monitoring'
+	  description 'Monitoring infrastructure with all monitored systems'
+	  
+	  include
+		Prod.SecZone,
+		Prod.SecZone.** where tag is #Vm,
+		Prod.Dmz,
+		Prod.Dmz.** where tag is #Vm,
+		Prod.AppTier,
+		Prod.AppTier.** where tag is #Vm,
+		Prod.ProcTier,
+		Prod.ProcTier.** where tag is #Vm,
+		Prod.DataTier,
+		Prod.DataTier.** where tag is #Vm,
+		-> Prod.SecZone.*,
+		Prod.SecZone.* ->
+	}
+  
+	deployment view backup_recovery {
+	  title 'Backup & Disaster Recovery'
+	  description 'Backup infrastructure with all protected data systems'
+	  
+	  include
+		Prod.InfraZone,
+		Prod.InfraZone.** where tag is #Vm,
+		Prod.DataTier,
+		Prod.DataTier.** where tag is #Vm,
+		-> Prod.InfraZone.*,
+		Prod.InfraZone.* ->
+	}
+	deployment view cicd {
+	  title 'Pipeline & Deployments'
+	  description 'Continuous integration, build, and deployment pipeline infrastructure and how it deploys to production services'
+	  
+	  include
+		Cicd,
+		Cicd.** where tag is #Vm,
+		-> Prod.**,
+		-> Cicd.**
+	}
+}

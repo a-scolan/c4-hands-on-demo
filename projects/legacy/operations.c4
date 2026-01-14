@@ -1,0 +1,245 @@
+// --- LEGACY OPERATIONS DEPLOYMENT ---
+// Security, monitoring, backup and disaster recovery infrastructure
+
+deployment {
+	extend Prod {// Security Zone - Monitoring and observability
+		SecZone = Zone "Security & Monitoring (VLAN 103: 10.3.0.0/24)" {
+			#Security
+			description """
+			  Monitoring, logging, and observability infrastructure
+			  
+			  | Property | Value |
+			  |:---------|:------|
+			  | VLAN | 103 |
+			  | Network | 10.3.0.0/24 |
+			  | Gateway | 10.3.0.1 |
+			"""
+			
+			// Monitoring VM
+			Monitoring = Node_Vm "Monitoring" {
+				#SharedInfra
+				technology "Prometheus + Grafana + Splunk"
+				description """
+				  Metrics, logs, and alerting
+				
+				  | Property | Value |
+				  |:---------|:------|
+				  | eth0 | 10.3.0.19/24 |
+				  | OS | CentOS 8 |
+				  | CPU | 4 vCPU |
+				  | RAM | 16 GB |
+				  | Disk | 2 TB SSD |
+				"""
+			}
+		}
+	  
+		// Infrastructure Zone - Backup and disaster recovery
+		InfraZone = Zone "Backup & Disaster Recovery (VLAN 105: 10.5.0.0/24)" {
+			description """
+			  Backup, replication, and disaster recovery infrastructure
+			  
+			  | Property | Value |
+			  |:---------|:------|
+			  | VLAN | 105 |
+			  | Network | 10.5.0.0/24 |
+			  | Gateway | 10.5.0.1 |
+			"""
+			
+			// Backup VM
+			Backup = Node_Vm "Backup" {
+				technology "Bacula / Veeam"
+				description """
+				  Offsite backup and disaster recovery
+				
+				  | Property | Value |
+				  |:---------|:------|
+				  | eth0 | 10.5.0.20/24 |
+				  | OS | CentOS 8 |
+				  | CPU | 4 vCPU |
+				  | RAM | 8 GB |
+				  | Disk | 10 TB HDD |
+				  | Retention | 30 days |
+				"""
+			}
+		}
+		// Security and monitoring flows
+		Monitoring -[tcp]-> ProdLbVm "Scrape metrics" {
+			#Monitoring #Observability
+			description "any -> 9000 (HAProxy stats)"
+		}
+		Monitoring -[tcp]-> ProdMonolithVm01 "Scrape metrics" {
+			#Monitoring #Observability
+			description "any -> 8080 (actuator)"
+		}
+		Monitoring -[tcp]-> ProdMonolithVm02 "Scrape metrics" {
+			#Monitoring #Observability
+			description "any -> 8080 (actuator)"
+		}
+		Monitoring -[tcp]-> ProdDatabaseVm "Scrape metrics" {
+			#Monitoring #Observability
+			description "any -> 5432 (PostgreSQL stats)"
+		}
+		Monitoring -[tcp]-> ProdNfsVm "Scrape metrics" {
+			#Monitoring #Observability
+			description "any -> 2049 (NFS stats)"
+		}
+		Backup -[tcp]-> ProdDatabaseVm "Backup database" {
+			#Backup #Recovery
+			description "any -> 5432"
+		}
+		Backup -[nfs]-> ProdNfsVm "Backup files" {
+			description "any -> 2049 (NFS)"
+		}
+	}
+	
+ // CI/CD Infrastructure
+	Node_Environment Cicd "CI/CD Pipeline Infrastructure" {
+		#Cicd
+		description """
+		  Continuous Integration and Continuous Deployment infrastructure
+		  for automated testing and deployment of the monolithic application
+		"""
+
+		CicdZone = Zone "CI/CD Tools Zone (VLAN 200: 10.200.0.0/24)" {
+			#Pipeline
+			description """
+			Development and deployment automation tools
+			
+			| Property | Value |
+			|:---------|:------|
+			| VLAN | 200 |
+			| Network | 10.200.0.0/24 |
+			| Gateway | 10.200.0.1 |
+		  """
+	
+	  // Git Repository
+			GitServerVm = Node_Vm "GitServerVm" {
+				#SharedInfra
+				technology "GitLab / GitHub Enterprise"
+				description """
+			  Git repository server for source code management
+			  
+			  | Property | Value |
+			  |:---------|:------|
+			  | eth0 | 10.200.0.10/24 |
+			  | OS | Ubuntu 22.04 LTS |
+			  | CPU | 8 vCPU |
+			  | RAM | 16 GB |
+			  | Storage | 500 GB SSD |
+			"""
+			}
+	
+	  // CI/CD Pipeline Server
+			CicdPipelineVm = Node_Vm "CicdPipelineVm" {
+				#SharedInfra
+				technology "GitLab CI / Jenkins"
+				description """
+			  CI/CD pipeline orchestration and build coordination
+			  
+			  | Property | Value |
+			  |:---------|:------|
+			  | eth0 | 10.200.0.11/24 |
+			  | OS | Ubuntu 22.04 LTS |
+			  | CPU | 16 vCPU |
+			  | RAM | 32 GB |
+			  | Storage | 1 TB SSD |
+			  | Concurrent Jobs | 20 |
+			"""
+			}
+	
+	  // Docker Registry
+			RegistryVm = Node_Vm "RegistryVm" {
+				#SharedInfra
+				technology "Docker Registry / Harbor"
+				description """
+			  Container image registry for built artifacts
+			  
+			  | Property | Value |
+			  |:---------|:------|
+			  | eth0 | 10.200.0.12/24 |
+			  | OS | Ubuntu 22.04 LTS |
+			  | CPU | 8 vCPU |
+			  | RAM | 16 GB |
+			  | Storage | 5 TB SSD |
+			  | Replication | 3-node cluster |
+			"""
+			}
+	
+	  // Artifact Repository
+			ArtifactRepoVm = Node_Vm "ArtifactRepoVm" {
+				#SharedInfra
+				technology "Nexus / Artifactory"
+				description """
+			  Build artifacts and dependency repository
+			  
+			  | Property | Value |
+			  |:---------|:------|
+			  | eth0 | 10.200.0.13/24 |
+			  | OS | Ubuntu 22.04 LTS |
+			  | CPU | 8 vCPU |
+			  | RAM | 16 GB |
+			  | Storage | 2 TB SSD |
+			"""
+			}
+		}
+	
+		// Relationships: Deployments to CI/CD infrastructure
+		CicdPipelineVm -[https]-> GitServerVm "Pull code" {
+			#DeploymentAutomation
+			description "Pull monolith code from repository"
+		}
+
+		CicdPipelineVm -[https]-> ArtifactRepoVm "Store artifacts" {
+			#DeploymentAutomation
+			description "Store compiled binaries and artifacts"
+		}
+	
+		// CI/CD pipeline orchestrates deployments
+		CicdPipelineVm -[https]-> Prod.AppTier.ProdMonolithVm01 "Deploy Monolith (Primary)" {
+			#DeploymentAutomation
+			description "Trigger Monolith deployment to primary instance"
+		}
+
+		CicdPipelineVm -[https]-> Prod.AppTier.ProdMonolithVm02 "Deploy Monolith (Secondary)" {
+			#DeploymentAutomation
+			description "Trigger Monolith deployment to secondary instance"
+		}
+
+		CicdPipelineVm -[https]-> Prod.DataTier.ProdDatabaseVm "Deploy Database" {
+			#DeploymentAutomation
+			description "Trigger PostgreSQL deployment and schema migrations"
+		}
+	
+		// Database schema migrations from artifact repository
+		Prod.DataTier.ProdDatabaseVm -[https]-> ArtifactRepoVm "Pull schema migrations" {
+			#DeploymentAutomation
+			description "Pull database migration scripts (Flyway/Liquibase)"
+		}
+
+		CicdPipelineVm -[https]-> Prod.DataTier.ProdNfsVm "Deploy Storage" {
+			#DeploymentAutomation
+			description "Trigger NFS storage deployment"
+		}
+	
+		// VMs pull compiled artifacts from repository
+		Prod.AppTier.ProdMonolithVm01 -[https]-> ArtifactRepoVm "Pull binaries" {
+			#DeploymentAutomation
+			description "Pull compiled Monolith binary"
+		}
+
+		Prod.AppTier.ProdMonolithVm02 -[https]-> ArtifactRepoVm "Pull binaries" {
+			#DeploymentAutomation
+			description "Pull compiled Monolith binary"
+		}
+
+		Prod.DataTier.ProdDatabaseVm -[https]-> ArtifactRepoVm "Pull binaries" {
+			#DeploymentAutomation
+			description "Pull PostgreSQL binary"
+		}
+
+		Prod.DataTier.ProdNfsVm -[https]-> ArtifactRepoVm "Pull binaries" {
+			#DeploymentAutomation
+			description "Pull NFS storage binary"
+		}
+	}
+}

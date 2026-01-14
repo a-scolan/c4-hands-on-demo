@@ -1,149 +1,109 @@
 // --- THE MODEL (Ground reality) ---
 model {
-  // Main actor
-  customer = Actor_Person 'Client' {
-    description 'Vault service user'
-  }
+	// Main actor
+	customer = Actor_Person 'Client' {
+		description 'Vault service user'
+	}
 
-  // User's web browser
-  browser = Container_Browser 'Web Browser' {
-    technology 'Chrome / Firefox / Safari'
-    description 'User web browser accessing the vault system'
-  }
+	// User's web browser
+	browser = Container_Browser 'Web Browser' {
+		technology 'Chrome / Firefox / Safari'
+		description 'User web browser accessing the vault system'
+	}
 
-  // The monolithic system
-  vault = System_Legacy 'Secure Vault System' {
-    
-    // Monolith deployed together
-    monolith = Container_ApplicationServer 'Spring Boot Monolith' {
-      technology 'Java / Spring Boot'
-      description 'Monolithic application'
-      icon tech:spring-icon
+	// The monolithic system
+	vault = System_Legacy 'Secure Vault System' {
+		
+		// 0.1 Frontend (runs in browser)
+		frontend = Container_Webapp 'Web UI SPA' {
+			description 'Client-side UI running in browser'
+			technology '(HTML/JS/CSS)'
+			icon tech:spring-icon
+		}
+	
+		// Load balancer for distribution
+		loadBalancer = Container_WebServer 'Load Balancer' {
+			description 'Distributes traffic across monolith instances'
+			technology 'HAProxy'
+			icon @/reversProxy.svg
+		}
 
-      // Presentation layer - Web server serves the UI
-      webappServer = Component 'Webapp Server' {
-        description 'Serves static UI assets (JSP/HTML/JS/CSS)'
-        technology 'Spring MVC / Embedded Tomcat'
-        icon tech:spring-icon
-      }
+		// Monolith deployed together
+		monolith = Container_ApplicationServer 'Spring Boot Monolith' {
+			technology 'Java / Spring Boot'
+			description 'Monolithic application'
+			icon tech:spring-icon
+			
 
-      frontend = Component 'Web UI (SPA in Browser)' {
-        description 'Client-side UI running in browser'
-        technology 'JSP/JavaScript'
-        icon tech:spring-icon
-      }
+			// Presentation layer - Web server serves the UI
+			webappServerModule = Component 'Webapp Server Module' {
+				description 'Serves static UI assets (HTML/JS/CSS)'
+				technology 'Spring MVC / Embedded Tomcat'
+				icon tech:spring-icon
+			}
 
-      // Upload handling
-      uploadHandler = Component 'Upload Controller' {
-        description 'Handles file uploads'
-        technology 'Spring @RestController'
-        icon tech:spring-icon
-      }
+			// Document handling module
+			documentModule = Component 'Document Module' {
+				description 'Handles document requests and uploads'
+				technology 'Spring'
+				icon tech:spring-icon
+			}
 
-      // File validation
-      fileValidator = Component 'File Validator' {
-        description 'Validates file type, size, structure'
-        technology 'Spring Component'
-        icon tech:spring-icon
-      }
+			// Security layer
+			scannerModule = Component 'Virus Scanner Module' {
+				description 'Synchronous virus scanning (blocking)'
+				technology 'VirusTotal SDK'
+			}
 
-      // Business layer
-      documentService = Component 'Document Service' {
-        description 'Document business logic and orchestration'
-        technology 'Spring @Service'
-        icon tech:spring-icon
-      }
+			encryptorModule = Component 'Encryption Module' {
+				description 'Encrypts files and stores keys'
+				technology 'AES-256 GCM'
+			}
 
-      // Security layer
-      scannerClient = Component 'Virus Scanner Client' {
-        description 'Synchronous virus scanning (blocking)'
-        technology 'VirusTotal SDK'
-      }
+		}
 
-      encryptor = Component 'Encryption Service' {
-        description 'Encrypts files and stores keys'
-        technology 'AES-256 GCM'
-      }
+		// The database
+		db = Container_Database 'Master DB' {
+			description 'Metadata storage'
+			technology 'PostgreSQL'
+			icon tech:postgresql
+		}
 
-      decryptor = Component 'Decryption Service' {
-        description 'Retrieves keys and decrypts files'
-        technology 'AES-256 GCM'
-      }
+		// Local disk (Single point of failure!)
+		disk = Container_FileServer 'Local Disk Array' {
+			description 'Mount point /mnt/data'
+			technology 'NFS'
+		}
+	}
 
-      // Storage handler
-      storageHandler = Component 'Storage Handler' {
-        description 'Manages file persistence to disk'
-        technology 'Spring Component'
-        icon tech:spring-icon
-      }
+	// External security service
+	scanner = System_External 'VirusTotal API' {
+		description 'SaaS Antivirus'
+	}
 
-      // Error handler
-      errorHandler = Component 'Error Handler' {
-        description 'Handles and logs processing errors'
-        technology 'Spring Component'
-        icon tech:spring-icon
-      }
+	// --- RELATIONSHIPS (Spaghetti bowl) ---
+	
+	// Initial Access
+	customer -[calls]-> browser 'Uses web browser'
+	browser -[calls]-> vault.frontend 'SPA runs in browser'
+	vault.frontend -[calls]-> vault.loadBalancer 'Sends requests'
+	vault.loadBalancer -[calls]-> vault.monolith.webappServerModule 'Loads UI assets (HTML/JS/CSS)'
 
-      // Data access layer
-      dao = Component 'Data Access Layer' {
-        description 'Repositories and DAOs'
-        technology 'Spring Data'
-        icon tech:spring-icon
-      }
-    }
+	// Document Upload Flow (Synchronous/Blocking)
+	vault.loadBalancer -[uses]-> vault.monolith.documentModule 'Upload file'
+	vault.monolith.documentModule -[uses]-> vault.monolith.scannerModule 'Scan file (blocking)'
+	vault.monolith.scannerModule -[calls]-> scanner 'Check for viruses'
+	vault.monolith.documentModule -[uses]-> vault.monolith.encryptorModule 'Encrypt clean file'
+	vault.monolith.documentModule -[writes]-> vault.disk 'Write encrypted file (blocking)'
+	vault.monolith.documentModule -[writes]-> vault.db 'Store document metadata as READY'
+	vault.monolith.documentModule -[writes]-> vault.db 'Mark as FAILED'
 
-    // The database
-    db = Container_Database 'Master DB' {
-      description 'Metadata storage'
-      technology 'PostgreSQL'
-      icon tech:postgresql
-    }
+	// Document Listing Flow
+	vault.loadBalancer -[uses]-> vault.monolith.documentModule 'Request document list'
+	vault.monolith.documentModule -[reads]-> vault.db 'Fetch metadata'
 
-    // Local disk (Single point of failure!)
-    disk = Container_FileServer 'Local Disk Array' {
-      description 'Mount point /mnt/data'
-      technology 'NFS'
-    }
-  }
-
-  // External security service
-  scanner = System_External 'VirusTotal API' {
-    description 'SaaS Antivirus'
-  }
-
-  // --- RELATIONSHIPS (Spaghetti bowl) ---
-  
-  // Initial Access
-  customer -[calls]-> browser 'Uses web browser'
-  browser -[calls]-> vault.monolith.webappServer 'Loads UI assets (HTML/JS/CSS)'
-  browser -[calls]-> vault.monolith.frontend 'SPA makes API requests'
-
-  // Document Upload Flow (Synchronous/Blocking)
-  vault.monolith.frontend -[uses]-> vault.monolith.uploadHandler 'Upload file'
-  vault.monolith.uploadHandler -[uses]-> vault.monolith.documentService 'Delegate processing'
-  vault.monolith.documentService -[uses]-> vault.monolith.fileValidator 'Validate file'
-  vault.monolith.documentService -[uses]-> vault.monolith.scannerClient 'Scan file (blocking)'
-  vault.monolith.scannerClient -[calls]-> scanner 'Check for viruses'
-  vault.monolith.documentService -[uses]-> vault.monolith.encryptor 'Encrypt clean file'
-  vault.monolith.encryptor -[writes]-> vault.db 'Store encryption key'
-  vault.monolith.documentService -[uses]-> vault.monolith.storageHandler 'Store encrypted file'
-  vault.monolith.storageHandler -[writes]-> vault.disk 'Write encrypted file (blocking)'
-  vault.monolith.documentService -[uses]-> vault.monolith.dao 'Save metadata'
-  vault.monolith.dao -[writes]-> vault.db 'Store document metadata as READY'
-  vault.monolith.documentService -[uses]-> vault.monolith.errorHandler 'On failure'
-  vault.monolith.errorHandler -[writes]-> vault.db 'Mark as FAILED'
-
-  // Document Listing Flow
-  vault.monolith.frontend -[uses]-> vault.monolith.documentService 'Request document list'
-  vault.monolith.documentService -[uses]-> vault.monolith.dao 'Query documents'
-  vault.monolith.dao -[reads]-> vault.db 'Fetch metadata'
-
-  // Document Download Flow (with Decryption)
-  vault.monolith.frontend -[uses]-> vault.monolith.documentService 'Request download'
-  vault.monolith.documentService -[uses]-> vault.monolith.dao 'Get document location'
-  vault.monolith.dao -[reads]-> vault.db 'Fetch metadata'
-  vault.monolith.documentService -[reads]-> vault.disk 'Read encrypted file (blocking)'
-  vault.monolith.documentService -[uses]-> vault.monolith.decryptor 'Decrypt file'
-  vault.monolith.decryptor -[reads]-> vault.db 'Retrieve encryption key'
-  vault.monolith.frontend -[uses]-> customer 'Download file'
+	// Document Download Flow (with Decryption)
+	vault.loadBalancer -[uses]-> vault.monolith.documentModule 'Request download'
+	vault.monolith.documentModule -[reads]-> vault.db 'Fetch metadata'
+	vault.monolith.documentModule -[reads]-> vault.disk 'Read encrypted file (blocking)'
 }

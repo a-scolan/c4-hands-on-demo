@@ -2,119 +2,72 @@
 // Infrastructure and networking diagrams for refactored microservices
 
 views 'Deployment' {
-  
-  deployment view user_access {
-    title 'User Access'
-    description 'End-user browser loads SPA from web server, then calls API Gateway'
-    
-    include
-      UserBrowser,
-      UserBrowser.**,
-      Prod.Dmz,
-      Prod.Dmz.**  where tag is #Vm,
-      Prod.Dmz.ProdWebServerVm,
-      UserBrowser ->,
-  }
+	
+	deployment view user_access {
+		title 'User Access'
+		description 'End-user browser loads SPA from web server, then calls API Gateway'
+		
+		include
+			Internet.UserBrowser,
+			Internet.UserBrowser.**,
+			Prod.Dmz,
+			Prod.Dmz.**	where tag is #Vm,
+			Prod.Dmz.ProdWebServerVm,
+			Internet.UserBrowser ->,
+	}
 
-  deployment view overview {
-    title 'Network Overview'
-    description 'Physical datacenter deployment with network zones, VLANs, and inter-zone connectivity'
-    
-    include 
-      Prod,
-      Prod.Dmz.** where tag is #Vm,
-      Prod.AppTier.** where tag is #Vm,
-      Prod.ProcTier.** where tag is #Vm,
-      Prod.DataTier.** where tag is #Vm,
-      Prod.SecZone,
-	  Prod.InfraZone,
-	  Cicd.CicdZone
-	  
-  }
+	deployment view overview {
+		title 'Network Overview'
+		description 'Physical datacenter deployment with network zones, VLANs, and inter-zone connectivity'
+		
+		include 
+			Prod,
+			Internet._,
+			Prod.Dmz.** where tag is #Vm,
+			Prod.AppTier.** where tag is #Vm,
+			Prod.ProcTier.** where tag is #Vm,
+			Prod.DataTier.** where tag is #Vm,
+		
+	}
 
-  deployment view app_tier {
-    title 'Application Tier'
-    description 'Microservices deployed across VM instances with external interactions'
-    
-    include
-      UserBrowser,
-      Prod.AppTier,
-      Prod.AppTier.** where tag is #Vm,
-      Prod.Dmz,
-      Prod.Dmz.** where tag is #Vm,
-      Prod.ProcTier.ProdQueueVm,
-      Prod.DataTier.ProdDatabaseVm,
-      Prod.DataTier.ProdStorageVm,
-      -> Prod.AppTier.*,
-      Prod.AppTier.* ->
-  }
+	deployment view app_tier {
+		title 'Application Tier'
+		description 'Microservices deployed across VM instances with external interactions'
+		
+		include
+		Prod,
+		Prod.AppTier.** where tag is #Vm,
+		Internet._ ->,
+		Prod.Dmz._ ->,
+		-> Prod.DataTier._,
+		-> Prod.ProcTier._,
+	}
 
-  deployment view proc_tier {
-    title 'Processing Tier'
-    description 'Async job processing with RabbitMQ and worker nodes, showing connections to app and data tiers'
-    
-    include
-      Prod.ProcTier,
-      Prod.ProcTier.** where tag is #Vm,
-      Prod.AppTier.ProdUploadVm,
-      Prod.DataTier.ProdDatabaseVm,
-      Prod.DataTier.ProdStorageVm,
-      -> Prod.ProcTier.*,
-      Prod.ProcTier.* ->
-  }
+	deployment view proc_tier {
+		title 'Processing Tier'
+		description 'Async job processing with RabbitMQ and worker nodes, showing connections to app and data tiers'
+		
+		include
+			Internet._,
+			Prod.ProcTier,
+			Prod.ProcTier.** where tag is #Vm,
+			Prod.AppTier.ProdUploadVm,
+			Prod.DataTier.ProdDatabaseVm,
+			Prod.DataTier.ProdStorageVm,
+			-> Prod.ProcTier.*,
+			Prod.ProcTier.* ->
+	}
 
-  deployment view data_tier {
-    title 'Data Tier'
-    description 'Database and object storage infrastructure with service dependencies'
-    
-    include
-      Prod.DataTier,
-      Prod.DataTier.** where tag is #Vm,
-      Prod.AppTier.ProdRetrievalVm,
-      Prod.ProcTier.ProdWorkerVm,
-      -> Prod.DataTier.*,
-      Prod.DataTier.* ->
-  }
-
-  deployment view security {
-    title 'Security & Monitoring'
-    description 'Monitoring infrastructure with all monitored systems'
-    
-    include
-      Prod.SecZone,
-      Prod.SecZone.** where tag is #Vm,
-      Prod.Dmz,
-      Prod.Dmz.** where tag is #Vm,
-      Prod.AppTier,
-      Prod.AppTier.** where tag is #Vm,
-      Prod.ProcTier,
-      Prod.ProcTier.** where tag is #Vm,
-      Prod.DataTier,
-      Prod.DataTier.** where tag is #Vm,
-      -> Prod.SecZone.*,
-      Prod.SecZone.* ->
-  }
-
-  deployment view backup_recovery {
-    title 'Backup & Disaster Recovery'
-    description 'Backup infrastructure with all protected data systems and cloud replication to AWS S3'
-    
-    include
-      Prod.InfraZone,
-      Prod.InfraZone.** where tag is #Vm,
-      Prod.DataTier,
-      Prod.DataTier.** where tag is #Vm,
-      -> Prod.InfraZone.*,
-      Prod.InfraZone.* ->
-  }
-  deployment view cicd {
-    title 'Pipeline & Deployments'
-    description 'Continuous integration, build, and deployment pipeline infrastructure and how it deploys to production services'
-    
-    include
-      Cicd,
-      Cicd.** where tag is #Vm,
-      -> Prod.**,
-      -> Cicd.**
-  }
+	deployment view data_tier {
+		title 'Data Tier'
+		description 'Database and object storage infrastructure with service dependencies'
+		
+		include
+			Prod.DataTier,
+			Prod.DataTier.** where tag is #Vm,
+			Prod.AppTier.ProdRetrievalVm,
+			Prod.ProcTier.ProdWorkerVm,
+			-> Prod.DataTier.*,
+			Prod.DataTier.* ->
+	}
 }

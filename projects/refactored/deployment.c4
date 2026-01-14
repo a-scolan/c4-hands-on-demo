@@ -2,583 +2,314 @@
 // Self-hosted datacenter deployment with VMs and networking
 
 deployment {
-  // User's browser (client-side)
-  Node_AppBrowser UserBrowser 'User Browser' {
-    #AppBrowser
-    description """
-      End-user web browser accessing the vault system
-      
-      | Property | Value |
-      |:---------|:------|
-      | Platform | Windows / macOS / Linux |
-      | Browsers | Chrome, Firefox, Safari, Edge |
-    """
-    
-    browserApp = Node_App 'Browser Instance' {
-		instanceOf browser
-		instanceOf vault.frontend
+	// User's browser (client-side)
+	Zone Internet "Public Internet" {
+		#Environment
+		description """
+		End-user access from public internet
+		"""
+		Node_AppBrowser UserBrowser "User Browser" {
+			description """
+				End-user web browser accessing the vault system
+				
+				| Property | Value |
+				|:---------|:------|
+				| Platform | Windows / macOS / Linux |
+				| Browsers | Chrome, Firefox, Safari, Edge |
+			"""
+
+			browserApp = Node_App "Browser Instance" {
+				instanceOf browser
+				instanceOf vault.frontend
+			}
+		}
+
+		// External SaaS Services
+		Node_External VirusTotalService "VirusTotal API" {
+			description """
+				External antivirus scanning service (SaaS)
+				
+				| Property | Value |
+				|:---------|:------|
+				| Provider | VirusTotal |
+				| Type | SaaS API |
+				| Protocol | HTTPS |
+			"""
+
+			scannerInstance = Node_App "VirusTotal API Instance" {
+				instanceOf scanner
+			}
+		}
+
 	}
-  }
 
-  Node_Environment Prod 'Production Datacenter - EU' {
-    #Production
-    
-    // Network Infrastructure
-  Zone Dmz 'Network DMZ (VLAN 100: 10.0.0.0/24)' {
-      #Networking
-      description """
-        Perimeter security zone with edge services
-        
-        | Property | Value |
-        |:---------|:------|
-        | VLAN | 100 |
-        | Network | 10.0.0.0/24 |
-        | Gateway | 10.0.0.1 |
-      """
-      
-    // API Gateway exposed at the edge (replaces LB)
-    ProdApigwVm = Node_Vm 'prod-apigw-vm' {
-        #SharedInfra
-        technology "Kong / API Gateway"
-          description """
-            Edge API gateway terminates TLS and routes to backend services
-          
-            | Property | Value |
-            |:---------|:------|
-            | eth0 | 10.0.0.10/24 |
-            | OS | Ubuntu 22.04 LTS |
-            | CPU | 4 vCPU |
-            | RAM | 8 GB |
-            | Port | 443 |
-          """
-        
-        apiApp = Node_App 'API Gateway App' {
-          instanceOf vault.api
-        }
-      }
-      // Web Server VM - serves the SPA
-      ProdWebServerVm = Node_Vm 'prod-webserver-vm' {
-        #Deployment
-        technology "Nginx"
-        description """
-          Serves static React SPA assets (HTML/JS/CSS)
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.1.0.10/24 |
-          | OS | Ubuntu 22.04 LTS |
-          | CPU | 2 vCPU |
-          | RAM | 4 GB |
-          | Port | 80 |
-        """
-        
-        webServerApp = Node_App 'Web Server App' {
-          instanceOf vault.webServer
-        }
-      }
-    }
+	Node_Environment Prod "Production Datacenter - EU" {
+		#Production
+		
+		// Network Infrastructure
+		Zone Dmz "Network DMZ (VLAN 100: 10.0.0.0/24)" {
+			description """
+				Perimeter security zone with edge services
+				
+				| Property | Value |
+				|:---------|:------|
+				| VLAN | 100 |
+				| Network | 10.0.0.0/24 |
+				| Gateway | 10.0.0.1 |
+			"""
+			
+			// API Gateway exposed at the edge (replaces LB)
+			ProdApigwVm = Node_Vm "prod-apigw-vm" {
+				#SharedInfra
+				technology "Kong / API Gateway"
+				description """
+						Edge API gateway terminates TLS and routes to backend services
+					
+						| Property | Value |
+						|:---------|:------|
+						| eth0 | 10.0.0.10/24 |
+						| OS | Ubuntu 22.04 LTS |
+						| CPU | 4 vCPU |
+						| RAM | 8 GB |
+						| Port | 443 |
+					"""
 
-  // Application Zone
-  AppTier = Zone 'Application Tier (VLAN 101: 10.1.0.0/24)' {
-      #Infrastructure
-      description """
-        Microservices deployment zone
-        
-        | Property | Value |
-        |:---------|:------|
-        | VLAN | 101 |
-        | Network | 10.1.0.0/24 |
-        | Gateway | 10.1.0.1 |
-      """
-      
+				apiApp = Node_App "API Gateway App" {
+					instanceOf vault.api
+				}
+			}
+			// Web Server VM - serves the SPA
+			ProdWebServerVm = Node_Vm "prod-webserver-vm" {
+				#Deployment
+				technology "Nginx"
+				description """
+					Serves static React SPA assets (HTML/JS/CSS)
+					
+					| Property | Value |
+					|:---------|:------|
+					| eth0 | 10.1.0.10/24 |
+					| OS | Ubuntu 22.04 LTS |
+					| CPU | 2 vCPU |
+					| RAM | 4 GB |
+					| Port | 80 |
+				"""
 
-      // Upload Service VM
-      ProdUploadVm = Node_Vm 'prod-upload-vm' {
-        #Deployment
-        technology "Node.js + Docker"
-        description """
-          File upload handler and validation service (fail-fast validation)
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.1.0.12/24 |
-          | OS | Ubuntu 22.04 LTS |
-          | CPU | 2 vCPU |
-          | RAM | 4 GB |
-          | Port | 3001 |
-        """
-        
-        uploadApp = Node_App 'Upload Service App' {
-          instanceOf vault.uploadService
-        }
-      }
+				webServerApp = Node_App "Web Server App" {
+					instanceOf vault.webServer
+				}
+			}
+		}
 
-      // Retrieval Service VM (merged Document + Download)
-      ProdRetrievalVm = Node_Vm 'prod-retrieval-vm' {
-        #Deployment
-        technology "GoLang + Docker + Redis"
-        description """
-          Unified metadata queries and file retrieval with caching
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.1.0.13/24 |
-          | OS | Ubuntu 22.04 LTS |
-          | CPU | 4 vCPU |
-          | RAM | 8 GB |
-          | Port | 3002 |
-          | Cache | Redis (local) |
-        """
-        
-        retrievalApp = Node_App 'Retrieval Service App' {
-          instanceOf vault.retrievalService
-        }
-      }
-    }
+		// Application Zone
+		AppTier = Zone "Application Tier (VLAN 101: 10.1.0.0/24)" {
+			description """
+				Microservices deployment zone
+				
+				| Property | Value |
+				|:---------|:------|
+				| VLAN | 101 |
+				| Network | 10.1.0.0/24 |
+				| Gateway | 10.1.0.1 |
+			"""
+			
 
-  // Processing Zone
-  ProcTier = Zone 'Processing Tier (VLAN 102: 10.2.0.0/24)' {
-      #Infrastructure
-      description """
-        Async job processing zone
-        
-        | Property | Value |
-        |:---------|:------|
-        | VLAN | 102 |
-        | Network | 10.2.0.0/24 |
-        | Gateway | 10.2.0.1 |
-      """
-      
-      // Worker VM
-      ProdWorkerVm = Node_Vm 'prod-worker-vm' {
-        #Deployment
-        technology "GoLang + Docker"
-        description """
-          Async job consumer and processor
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.2.0.15/24 |
-          | OS | Ubuntu 22.04 LTS |
-          | CPU | 8 vCPU |
-          | RAM | 16 GB |
-          | Workers | 4 |
-        """
-        
-        workerApp = Node_App 'Worker App' {
-          instanceOf vault.worker
-        }
-      }
+			// Upload Service VM
+			ProdUploadVm = Node_Vm "prod-upload-vm" {
+				#Deployment
+				technology "Node.js + Docker"
+				description """
+					File upload handler and validation service (fail-fast validation)
+					
+					| Property | Value |
+					|:---------|:------|
+					| eth0 | 10.1.0.12/24 |
+					| OS | Ubuntu 22.04 LTS |
+					| CPU | 2 vCPU |
+					| RAM | 4 GB |
+					| Port | 3001 |
+				"""
 
-      // Queue Broker VM
-      ProdQueueVm = Node_Vm 'prod-queue-vm' {
-        #Deployment
-        technology "RabbitMQ"
-        description """
-          Async job queue broker
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.2.0.16/24 |
-          | OS | Ubuntu 22.04 LTS |
-          | CPU | 4 vCPU |
-          | RAM | 8 GB |
-          | Port | 5672 |
-          | Clustering | enabled |
-        """
-        
-        queueApp = Node_App 'RabbitMQ App' {
-          instanceOf vault.jobs
-        }
-      }
-    }
+				uploadApp = Node_App "Upload Service App" {
+					instanceOf vault.uploadService
+				}
+			}
 
-  // Data Tier
-  DataTier = Zone 'Data Tier (VLAN 103: 10.3.0.0/24)' {
-      #Infrastructure
-      description """
-        Database and storage zone
-        
-        | Property | Value |
-        |:---------|:------|
-        | VLAN | 103 |
-        | Network | 10.3.0.0/24 |
-        | Gateway | 10.3.0.1 |
-      """
-      
-      // MongoDB Cluster
-      ProdDatabaseVm = Node_Vm 'prod-database-vm' {
-        #Deployment
-        technology "MongoDB 6.0"
-        description """
-          Encrypted document metadata storage
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.3.0.17/24 |
-          | OS | Ubuntu 22.04 LTS |
-          | CPU | 8 vCPU |
-          | RAM | 32 GB |
-          | Port | 27017 |
-          | Disk | 1 TB SSD |
-          | Replication | 3-node replica set |
-          | Encryption | at-rest enabled |
-        """
-        
-        dbApp = Node_App 'MongoDB Instance' {
-          instanceOf vault.docDB
-        }
-      }
+			// Retrieval Service VM (merged Document + Download)
+			ProdRetrievalVm = Node_Vm "prod-retrieval-vm" {
+				#Deployment
+				technology "GoLang + Docker + Redis"
+				description """
+					Unified metadata queries and file retrieval with caching
+					
+					| Property | Value |
+					|:---------|:------|
+					| eth0 | 10.1.0.13/24 |
+					| OS | Ubuntu 22.04 LTS |
+					| CPU | 4 vCPU |
+					| RAM | 8 GB |
+					| Port | 3002 |
+					| Cache | Redis (local) |
+				"""
 
-      // MinIO Object Storage (Primary)
-      ProdStorageVm = Node_Vm 'prod-storage-vm' {
-        #Deployment
-        technology "MinIO"
-        description """
-          Primary encrypted object storage (on-premises)
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.3.0.18/24 |
-          | OS | Ubuntu 22.04 LTS |
-          | CPU | 16 vCPU |
-          | RAM | 64 GB |
-          | Disk | 100 TB HDD |
-          | Replication | 3-node distributed |
-          | Encryption | at-rest enabled |
-        """
-        
-        storageApp = Node_App 'MinIO Instance' {
-          instanceOf minio
-        }
-      }
-    }
+				retrievalApp = Node_App "Retrieval Service App" {
+					instanceOf vault.retrievalService
+				}
+			}
+		}
 
-  // Security Zone - Monitoring and observability
-  SecZone = Zone 'Security & Monitoring (VLAN 104: 10.4.0.0/24)' {
-      #Security
-      description """
-        Monitoring, logging, and observability infrastructure
-        Firewall is implicit at zone boundary
-        
-        | Property | Value |
-        |:---------|:------|
-        | VLAN | 104 |
-        | Network | 10.4.0.0/24 |
-        | Gateway | 10.4.0.1 |
-      """
-      
-      // Monitoring VM
-      Monitoring = Node_Vm 'monitoring' {
-        #SharedInfra
-        technology "Prometheus + Grafana + ELK"
-        description """
-          Metrics, logs, and alerting
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.4.0.19/24 |
-          | OS | Ubuntu 22.04 LTS |
-          | CPU | 4 vCPU |
-          | RAM | 16 GB |
-          | Disk | 2 TB SSD |
-        """
-      }
-    }
+		// Processing Zone
+		ProcTier = Zone "Processing Tier (VLAN 102: 10.2.0.0/24)" {
+			description """
+				Async job processing zone
+				
+				| Property | Value |
+				|:---------|:------|
+				| VLAN | 102 |
+				| Network | 10.2.0.0/24 |
+				| Gateway | 10.2.0.1 |
+			"""
+			
+			// Worker VM
+			ProdWorkerVm = Node_Vm "prod-worker-vm" {
+				#Deployment
+				technology "GoLang + Docker"
+				description """
+					Async job consumer and processor
+					
+					| Property | Value |
+					|:---------|:------|
+					| eth0 | 10.2.0.15/24 |
+					| OS | Ubuntu 22.04 LTS |
+					| CPU | 8 vCPU |
+					| RAM | 16 GB |
+					| Workers | 4 |
+				"""
 
-  // Infrastructure Zone - Backup and disaster recovery
-  InfraZone = Zone 'Backup & Disaster Recovery (VLAN 105: 10.5.0.0/24)' {
-      #Infrastructure
-      description """
-        Backup, replication, and disaster recovery infrastructure
-        
-        | Property | Value |
-        |:---------|:------|
-        | VLAN | 105 |
-        | Network | 10.5.0.0/24 |
-        | Gateway | 10.5.0.1 |
-      """
-      
-      // Backup VM
-      Backup = Node_Vm 'backup' {
-        technology "Bacula / Veeam"
-        description """
-          Offsite backup and disaster recovery
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.5.0.20/24 |
-          | OS | Ubuntu 22.04 LTS |
-          | CPU | 4 vCPU |
-          | RAM | 8 GB |
-          | Disk | 10 TB HDD |
-          | Retention | 30 days |
-        """
-      }
-    }
+				workerApp = Node_App "Worker App" {
+					instanceOf vault.worker
+				}
+			}
 
-    // User browser access - loads SPA from web server
-    UserBrowser.browser -[https]-> Prod.Dmz.ProdWebServerVm 'Load SPA assets' {
-      #Ingress
-      description "any -> 443"
-    }
+			// Queue Broker VM
+			ProdQueueVm = Node_Vm "prod-queue-vm" {
+				#Deployment
+				technology "RabbitMQ"
+				description """
+					Async job queue broker
+					
+					| Property | Value |
+					|:---------|:------|
+					| eth0 | 10.2.0.16/24 |
+					| OS | Ubuntu 22.04 LTS |
+					| CPU | 4 vCPU |
+					| RAM | 8 GB |
+					| Port | 5672 |
+					| Clustering | enabled |
+				"""
 
-    // App-to-App connections (application layer - firewall rules derived from these)
-    UserBrowser.browserApp.frontend -> Prod.Dmz.ProdApigwVm.apiApp 'API requests' {
-      description "any -> 443 (HTTPS)"
-    }
-    Prod.Dmz.ProdApigwVm.apiApp -> Prod.AppTier.ProdUploadVm.uploadApp 'Route uploads' {
-      description "443 -> 3001"
-    }
-    Prod.Dmz.ProdApigwVm.apiApp -> Prod.AppTier.ProdRetrievalVm.retrievalApp 'Route retrieval' {
-      description "443 -> 3002"
-    }
-    Prod.AppTier.ProdUploadVm.uploadApp -> Prod.ProcTier.ProdQueueVm.queueApp 'Queue jobs' {
-      description "3001 -> 5672"
-    }
-    Prod.ProcTier.ProdWorkerVm.workerApp -> Prod.ProcTier.ProdQueueVm.queueApp 'Consume jobs' {
-      description "any -> 5672"
-    }
-    Prod.ProcTier.ProdWorkerVm.workerApp -> Prod.DataTier.ProdDatabaseVm.dbApp 'Persist metadata' {
-      description "any -> 27017"
-    }
-    Prod.ProcTier.ProdWorkerVm.workerApp -> Prod.DataTier.ProdStorageVm.storageApp 'Store files' {
-      description "any -> 9000-9001"
-    }
-    Prod.AppTier.ProdRetrievalVm.retrievalApp -> Prod.DataTier.ProdDatabaseVm.dbApp 'Fetch metadata' {
-      description "3002 -> 27017"
-    }
-    Prod.AppTier.ProdRetrievalVm.retrievalApp -> Prod.DataTier.ProdStorageVm.storageApp 'Fetch objects' {
-      description "3002 -> 9000-9001"
-    }
+				queueApp = Node_App "RabbitMQ App" {
+					instanceOf vault.jobs
+				}
+			}
+		}
 
-    // Security and monitoring flows
-    Monitoring -[tcp]-> ProdApigwVm 'Scrape metrics' {
-      #Monitoring #Observability
-      description "any -> 9090"
-    }
-    Monitoring -[tcp]-> ProdUploadVm 'Scrape metrics' {
-      #Monitoring #Observability
-      description "any -> 9090"
-    }
-    Monitoring -[tcp]-> ProdRetrievalVm 'Scrape metrics' {
-      #Monitoring #Observability
-      description "any -> 9090"
-    }
-    Monitoring -[tcp]-> ProdWorkerVm 'Scrape metrics' {
-      #Monitoring #Observability
-      description "any -> 9090"
-    }
-    Monitoring -[tcp]-> ProdQueueVm 'Scrape metrics' {
-      #Monitoring #Observability
-      description "any -> 15672 (RabbitMQ mgmt)"
-    }
-    Monitoring -[tcp]-> ProdDatabaseVm 'Scrape metrics' {
-      #Monitoring #Observability
-      description "any -> 27017 (MongoDB metrics)"
-    }
-    Monitoring -[tcp]-> ProdStorageVm 'Scrape metrics' {
-      description "any -> 9000 (MinIO metrics)"
-    }
+		// Data Tier
+		DataTier = Zone "Data Tier (VLAN 103: 10.3.0.0/24)" {
+			description """
+				Database and storage zone
+				
+				| Property | Value |
+				|:---------|:------|
+				| VLAN | 103 |
+				| Network | 10.3.0.0/24 |
+				| Gateway | 10.3.0.1 |
+			"""
+			
+			// MongoDB Cluster
+			ProdDatabaseVm = Node_Vm "prod-database-vm" {
+				#Deployment
+				technology "MongoDB 6.0"
+				description """
+					Encrypted document metadata storage
+					
+					| Property | Value |
+					|:---------|:------|
+					| eth0 | 10.3.0.17/24 |
+					| OS | Ubuntu 22.04 LTS |
+					| CPU | 8 vCPU |
+					| RAM | 32 GB |
+					| Port | 27017 |
+					| Disk | 1 TB SSD |
+					| Replication | 3-node replica set |
+					| Encryption | at-rest enabled |
+				"""
 
-    // Backup and disaster recovery flows
-    Backup -[tcp]-> ProdDatabaseVm 'Backup database' {
-      #Backup #Recovery
-      description "any -> 27017 (MongoDB dump)"
-    }
-    Backup -[tcp]-> ProdStorageVm 'Backup objects' {
-      #Backup #Recovery
-      description "any -> 9000-9001 (MinIO replication)"
-    }
-  }
+				dbApp = Node_App "MongoDB Instance" {
+					instanceOf vault.docDB
+				}
+			}
 
-  // CI/CD Infrastructure
-  Node_Environment Cicd 'CI/CD Pipeline Infrastructure' {
-    #Cicd
-    description """
-      Continuous Integration and Continuous Deployment infrastructure
-      for automated testing and deployment of microservices
-    """
+			// MinIO Object Storage (Primary)
+			ProdStorageVm = Node_Vm "prod-storage-vm" {
+				#Deployment
+				technology "MinIO"
+				description """
+					Primary encrypted object storage (on-premises)
+					
+					| Property | Value |
+					|:---------|:------|
+					| eth0 | 10.3.0.18/24 |
+					| OS | Ubuntu 22.04 LTS |
+					| CPU | 16 vCPU |
+					| RAM | 64 GB |
+					| Disk | 100 TB HDD |
+					| Replication | 3-node distributed |
+					| Encryption | at-rest enabled |
+				"""
 
-    CicdZone = Zone 'CI/CD Prod (VLAN 200: 10.200.0.0/24)' {
-      #Pipeline
-      description """
-        Development and deployment automation tools
-        
-        | Property | Value |
-        |:---------|:------|
-        | VLAN | 200 |
-        | Network | 10.200.0.0/24 |
-        | Gateway | 10.200.0.1 |
-      """
+				storageApp = Node_App "MinIO Instance" {
+					instanceOf vault.minio
+				}
+			}
+		}
 
-      // Git Repository
-      GitServerVm = Node_Vm 'git-server-vm' {
-        #SharedInfra
-        technology "GitLab / GitHub Enterprise"
-        description """
-          Git repository server for source code management
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.200.0.10/24 |
-          | OS | Ubuntu 22.04 LTS |
-          | CPU | 8 vCPU |
-          | RAM | 16 GB |
-          | Storage | 500 GB SSD |
-        """
-      }
+		// Security Zone - Monitoring and observability
+		// Infrastructure Zone - Backup and disaster recovery
+		// (Defined in operations.c4)
 
-      // CI/CD Pipeline Server
-      CicdPipelineVm = Node_Vm 'cicd-pipeline-vm' {
-        #SharedInfra
-        technology "GitLab CI / Jenkins"
-        description """
-          CI/CD pipeline orchestration and build coordination
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.200.0.11/24 |
-          | OS | Ubuntu 22.04 LTS |
-          | CPU | 16 vCPU |
-          | RAM | 32 GB |
-          | Storage | 1 TB SSD |
-          | Concurrent Jobs | 20 |
-        """
-      }
+		// User browser access - loads SPA from web server
+		UserBrowser.browser -[https]-> Prod.Dmz.ProdWebServerVm "Load SPA assets" {
+			#Ingress
+			description "any -> 443"
+		}
 
-      // Docker Registry
-      RegistryVm = Node_Vm 'registry-vm' {
-        #SharedInfra
-        technology "Docker Registry / Harbor"
-        description """
-          Container image registry for built artifacts
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.200.0.12/24 |
-          | OS | Ubuntu 22.04 LTS |
-          | CPU | 8 vCPU |
-          | RAM | 16 GB |
-          | Storage | 5 TB SSD |
-          | Replication | 3-node cluster |
-        """
-      }
-
-      // Artifact Repository
-      ArtifactRepoVm = Node_Vm 'artifact-repo-vm' {
-        #SharedInfra
-        technology "Nexus / Artifactory"
-        description """
-          Build artifacts and dependency repository
-          
-          | Property | Value |
-          |:---------|:------|
-          | eth0 | 10.200.0.13/24 |
-          | OS | Ubuntu 22.04 LTS |
-          | CPU | 8 vCPU |
-          | RAM | 16 GB |
-          | Storage | 2 TB SSD |
-        """
-      }
-    }
-
-    // Relationships: Deployments to CI/CD infrastructure
-    CicdPipelineVm -[https]-> GitServerVm 'Pull code' {
-      #DeploymentAutomation
-      description "Pull microservice code from repository"
-    }
-
-    CicdPipelineVm -[https]-> RegistryVm 'Push images' {
-      #DeploymentAutomation
-      description "Push built container images to registry"
-    }
-
-    CicdPipelineVm -[https]-> ArtifactRepoVm 'Store artifacts' {
-      #DeploymentAutomation
-      description "Store build artifacts and dependencies"
-    }
-
-    // CI/CD pipeline orchestrates deployments
-    CicdPipelineVm -[https]-> Prod.Dmz.ProdApigwVm 'Deploy API Gateway' {
-      #DeploymentAutomation
-      description "Trigger Kong deployment to API Gateway"
-    }
-
-    CicdPipelineVm -[https]-> Prod.Dmz.ProdWebServerVm 'Deploy Web Server' {
-      #DeploymentAutomation
-      description "Deploy SPA assets to web server"
-    }
-
-    CicdPipelineVm -[https]-> Prod.AppTier.ProdUploadVm 'Deploy Upload Service' {
-      #DeploymentAutomation
-      description "Trigger Upload Service deployment"
-    }
-
-    CicdPipelineVm -[https]-> Prod.AppTier.ProdRetrievalVm 'Deploy Retrieval Service' {
-      #DeploymentAutomation
-      description "Trigger Retrieval Service deployment"
-    }
-
-    CicdPipelineVm -[https]-> Prod.ProcTier.ProdWorkerVm 'Deploy Worker' {
-      #DeploymentAutomation
-      description "Trigger Worker deployment"
-    }
-
-    CicdPipelineVm -[https]-> Prod.ProcTier.ProdQueueVm 'Deploy Queue' {
-      #DeploymentAutomation
-      description "Trigger RabbitMQ deployment"
-    }
-
-    CicdPipelineVm -[https]-> Prod.DataTier.ProdDatabaseVm 'Deploy Database' {
-      #DeploymentAutomation
-      description "Trigger MongoDB deployment and schema migrations"
-    }
-
-    // Database schema migrations from artifact repository
-    Prod.DataTier.ProdDatabaseVm -[https]-> ArtifactRepoVm 'Pull schema migrations' {
-      #DeploymentAutomation
-      description "Pull database migration scripts (MongoDB migrations)"
-    }
-
-    CicdPipelineVm -[https]-> Prod.DataTier.ProdStorageVm 'Deploy Storage' {
-      #DeploymentAutomation
-      description "Trigger MinIO deployment"
-    }
-
-    Prod.Dmz.ProdWebServerVm -[https]-> ArtifactRepoVm 'Pull SPA assets' {
-      #DeploymentAutomation
-      description "Pull built React SPA static files"
-    }
-
-    Prod.AppTier.ProdUploadVm -[https]-> RegistryVm 'Pull Upload image' {
-      #DeploymentAutomation
-      description "Pull container image from registry"
-    }
-
-    Prod.AppTier.ProdRetrievalVm -[https]-> RegistryVm 'Pull Retrieval image' {
-      #DeploymentAutomation
-      description "Pull container image from registry"
-    }
-
-    Prod.ProcTier.ProdWorkerVm -[https]-> RegistryVm 'Pull Worker image' {
-      #DeploymentAutomation
-      description "Pull container image from registry"
-    }
-
-    Prod.ProcTier.ProdQueueVm -[https]-> RegistryVm 'Pull Queue image' {
-      #DeploymentAutomation
-      description "Pull RabbitMQ image from registry"
-    }
-
-    Prod.DataTier.ProdDatabaseVm -[https]-> RegistryVm 'Pull Database image' {
-      #DeploymentAutomation
-      description "Pull MongoDB image from registry"
-    }
-
-    Prod.DataTier.ProdStorageVm -[https]-> RegistryVm 'Pull Storage image' {
-      #DeploymentAutomation
-      description "Pull MinIO image from registry"
-    }
-  }
+		// App-to-App connections (application layer - firewall rules derived from these)
+		UserBrowser.browserApp.frontend -> Prod.Dmz.ProdApigwVm.apiApp "API requests" {
+			description "any -> 443 (HTTPS)"
+		}
+		Prod.Dmz.ProdApigwVm.apiApp -> Prod.AppTier.ProdUploadVm.uploadApp "Route uploads" {
+			description "443 -> 3001"
+		}
+		Prod.Dmz.ProdApigwVm.apiApp -> Prod.AppTier.ProdRetrievalVm.retrievalApp "Route retrieval" {
+			description "443 -> 3002"
+		}
+		Prod.AppTier.ProdUploadVm.uploadApp -> Prod.ProcTier.ProdQueueVm.queueApp "Queue jobs" {
+			description "3001 -> 5672"
+		}
+		Prod.ProcTier.ProdWorkerVm.workerApp -> Prod.ProcTier.ProdQueueVm.queueApp "Consume jobs" {
+			description "any -> 5672"
+		}
+		Prod.ProcTier.ProdWorkerVm.workerApp -> Prod.DataTier.ProdDatabaseVm.dbApp "Persist metadata" {
+			description "any -> 27017"
+		}
+		Prod.ProcTier.ProdWorkerVm.workerApp -> Prod.DataTier.ProdStorageVm.storageApp "Store files" {
+			description "any -> 9000-9001"
+		}
+		Prod.AppTier.ProdRetrievalVm.retrievalApp -> Prod.DataTier.ProdDatabaseVm.dbApp "Fetch metadata" {
+			description "3002 -> 27017"
+		}
+		Prod.AppTier.ProdRetrievalVm.retrievalApp -> Prod.DataTier.ProdStorageVm.storageApp "Fetch objects" {
+			description "3002 -> 9000-9001"
+		}
+	}
 }
