@@ -26,8 +26,9 @@ specification {
 	
 	// Technology tags
 	tag Queue {
-		color rgb(251, 191, 36)
+		color rgb(136, 107, 32)
 	}
+	
 	tag Security {
 		color rgb(220, 38, 38)
 	}

@@ -12,6 +12,7 @@ specification {
 	tag Api
 	tag Geo
 	tag Database
+	tag ObjectStorage
 	tag Directory
 	tag Mailserver
 	tag Loadbalancer
@@ -28,7 +29,6 @@ specification {
 		#Container
 		notation 'Application container'
 		style {
-			color modern
 			icon @/serverGray.svg
 		}
 	}
@@ -36,16 +36,14 @@ specification {
 		#Container #ReverseProxy
 		notation 'Reverse proxy'
 		style {
-			shape rectangle
-			icon @/reversProxy.svg
+						icon @/reversProxy.svg
 		}
 	}
 	element Container_Waf {
 		#Container #Waf
 		notation 'WAF (Web Application Firewall)'
 		style {
-			shape rectangle
-			icon @/waf.svg
+						icon @/waf.svg
 		}
 	}
 	element Container_Browser {
@@ -76,33 +74,29 @@ specification {
 		#Container #Webapp
 		notation 'Web application'
 		style {
-			color modern
-			shape rectangle
-			icon @/serverGray.svg
+						icon @/serverGray.svg
 		}
 	}
 	element Container_Api {
 		#Container #Api
 		notation 'API / Service'
 		style {
-			shape rectangle
-			icon @/serverGray.svg
+						icon @/serverGray.svg
 		}
 	}
 	element Container_Api_Geo {
 		#Container #Api #Geo
 		notation 'Mapping API'
 		style {
-			shape rectangle
-			icon @/geoServerColored.svg
+						icon @/geoServerColored.svg
 		}
 	}
 	element Container_Queue {
 		#Container #Queue
 		notation 'Message queue'
 		style {
-			shape cylinder
-			icon bootstrap:database
+			shape queue
+			icon bootstrap:mailbox
 		}
 	}
 	element Container_Database {
@@ -114,44 +108,52 @@ specification {
 			icon bootstrap:database
 		}
 	}
-	element Container_Database_Geo {
+	element Container_DatabaseGeo {
 		#Container #Database #Geo
 		notation 'Geographic data warehouse'
 		style {
+			color storage
 			shape storage
 			icon @/geoWarehouse.svg
+		}
+	}
+	element Container_ObjectStorage {
+		#Container #ObjectStorage
+		notation 'Object storage'
+		style {
+			color storage
+			shape storage
+			icon bootstrap:bucket
 		}
 	}
 	element Container_Directory {
 		#Container #Directory
 		notation 'Directory (LDAP)'
 		style {
+			color storage
 			shape storage
-			icon bootstrap:database-check
+			icon @/ldap.svg
 		}
 	}
 	element Container_Mailserver {
 		#Container #Mailserver
 		notation 'Mail server'
 		style {
-			shape rectangle
-			icon @/mailServer.svg
+						icon @/mailServer.svg
 		}
 	}
 	element Container_Loadbalancer {
 		#Container #Loadbalancer
 		notation 'Load Balancer'
 		style {
-			shape rectangle
-			icon bootstrap:diagram-3
+						icon bootstrap:diagram-3
 		}
 	}
 	element Container_Firewall {
 		#Container #Firewall
 		notation 'Firewall'
 		style {
-			shape rectangle
-			icon bootstrap:shield
+						icon bootstrap:shield
 		}
 	}
 	element Container_DataServer {
@@ -176,40 +178,34 @@ specification {
 		#Container #ProcessingServer
 		notation 'Processing server'
 		style {
-			shape rectangle
-			icon @/processingServer.svg
+						icon @/processingServer.svg
 		}
 	}
 	element Container_ExchangeServer {
 		#Container #ExchangeServer
 		notation 'Exchange server'
 		style {
-			shape rectangle
-			icon @/exchangeServer.svg
+						icon @/exchangeServer.svg
 		}
 	}
 	element Container_IamServer {
 		#Container #IamServer
 		notation 'IAM server'
 		style {
-			shape rectangle
-			icon @/iamServer.svg
+						icon @/iamServer.svg
 		}
 	}
 	element Container_WebServer {
 		#Container #WebServer
 		notation 'Web server'
 		style {
-			shape rectangle
-			icon @/webServer.svg
+						icon @/webServer.svg
 		}
 	}
 	element Container_ApplicationServer {
 		#Container #ApplicationServer
 		notation 'Application server'
 		style {
-			color modern
-			shape rectangle
 			icon @/applicationServer.svg
 		}
 	}

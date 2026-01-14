@@ -135,7 +135,7 @@ model {
 		}
 
 		// --- INTERNAL STORAGE ---
-		minio = System_Existing 'MinIO Object Storage' {
+		minio = Container_ObjectStorage 'MinIO Object Storage' {
 			description 'Primary encrypted object storage (on-premises) with 3-node replication'
 		}
 	}

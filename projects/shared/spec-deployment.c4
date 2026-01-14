@@ -242,8 +242,7 @@ specification {
 		#Node #AppRich
 		notation 'User terminal: rich client'
 		style {
-			shape rectangle
-			icon @/software.svg
+						icon @/software.svg
 		}
 	}
 	
