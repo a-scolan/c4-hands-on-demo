@@ -220,17 +220,7 @@ deployment {
       }
     }
 
-    // Inter-zone routing intents
-    Dmz -[https]-> AppTier 'Ingress web traffic' {
-      #Ingress #Routing
-      description "ephemeral (443) -> 8080 via gateways 10.0.0.1 -> 10.1.0.1"
-    }
-    AppTier -[tcp]-> DataTier 'Metadata and file IO' {
-      #Persistence #Data
-      description "ephemeral -> 5432 (PostgreSQL), 2049 (NFS) via gateways 10.1.0.1 -> 10.2.0.1"
-    }
-
-    // Service-level flows to derive firewall rules
+    // Service-level flows (VM-to-VM connections)
     ProdLbVm -[https]-> ProdMonolithVm01 'Route primary' {
       #Service #Routing
       description "443 -> 8080"
@@ -254,6 +244,12 @@ deployment {
     ProdMonolithVm02 -[nfs]-> ProdNfsVm 'Store files (standby)' {
       description "ephemeral -> 2049 (NFS)"
     }
+
+    // App-to-App connections (application layer)
+    Prod.AppTier.ProdMonolithVm01.monolithApp -> Prod.DataTier.ProdDatabaseVm.dbApp 'Persist metadata'
+    Prod.AppTier.ProdMonolithVm02.monolithApp -> Prod.DataTier.ProdDatabaseVm.dbApp 'Persist metadata (failover)'
+    Prod.AppTier.ProdMonolithVm01.monolithApp -> Prod.DataTier.ProdNfsVm.nfsApp 'Store files'
+    Prod.AppTier.ProdMonolithVm02.monolithApp -> Prod.DataTier.ProdNfsVm.nfsApp 'Store files (standby)'
 
     // Security and monitoring flows
     Monitoring -[tcp]-> ProdLbVm 'Scrape metrics' {

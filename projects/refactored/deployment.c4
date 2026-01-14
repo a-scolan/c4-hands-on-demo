@@ -299,25 +299,7 @@ deployment {
       }
     }
 
-    // Inter-zone routing intents
-    Dmz -[https]-> AppTier 'Ingress API traffic' {
-      #Ingress #Routing
-      description "ephemeral (443) -> 3000-3003 via gateways 10.0.0.1 -> 10.1.0.1"
-    }
-    AppTier -[amqp]-> ProcTier 'Async queue traffic' {
-      #Messaging #Async
-      description "ephemeral -> 5672 via gateways 10.1.0.1 -> 10.2.0.1"
-    }
-    AppTier -[tcp]-> DataTier 'Service reads/writes' {
-      #Persistence #Data
-      description "ephemeral -> 27017 (MongoDB), 9000-9001 (MinIO) via gateways 10.1.0.1 -> 10.3.0.1"
-    }
-    ProcTier -[tcp]-> DataTier 'Worker persistence' {
-      #Persistence #Data
-      description "ephemeral -> 27017 (MongoDB), 9000-9001 (MinIO)"
-    }
-
-    // Service-level flows to derive firewall rules
+    // Service-level flows (VM-to-VM connections)
     ProdApigwVm -[https]-> ProdFrontendVm 'Serve SPA assets' {
       #Service #Routing
       description "443 -> 3000"
@@ -350,6 +332,16 @@ deployment {
       #Service #Persistence
       description "ephemeral -> 9000-9001 (MinIO)"
     }
+
+    // App-to-App connections (application layer)
+    Prod.Dmz.ProdApigwVm.apiApp -> Prod.AppTier.ProdFrontendVm.frontendApp 'Serve SPA'
+    Prod.Dmz.ProdApigwVm.apiApp -> Prod.AppTier.ProdUploadVm.uploadApp 'Route uploads'
+    Prod.Dmz.ProdApigwVm.apiApp -> Prod.AppTier.ProdRetrievalVm.retrievalApp 'Route retrieval'
+    Prod.AppTier.ProdUploadVm.uploadApp -> Prod.ProcTier.ProdQueueVm.queueApp 'Queue jobs'
+    Prod.ProcTier.ProdWorkerVm.workerApp -> Prod.DataTier.ProdDatabaseVm.dbApp 'Persist metadata'
+    Prod.ProcTier.ProdWorkerVm.workerApp -> Prod.DataTier.ProdStorageVm.storageApp 'Store files'
+    Prod.AppTier.ProdRetrievalVm.retrievalApp -> Prod.DataTier.ProdDatabaseVm.dbApp 'Fetch metadata'
+    Prod.AppTier.ProdRetrievalVm.retrievalApp -> Prod.DataTier.ProdStorageVm.storageApp 'Fetch objects'
 
     // Security and monitoring flows
     Monitoring -[tcp]-> ProdApigwVm 'Scrape metrics' {
