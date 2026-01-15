@@ -572,3 +572,70 @@ description """
 ### 📚 Learn More
 
 For detailed syntax and examples, visit [LikeC4 Documentation](https://likec4.dev/dsl)
+
+---
+
+## 🎨 Using the Template
+
+Want to start a new architecture documentation project? Use the **ready-to-go template** included in this workspace!
+
+### Quick Start with Template
+
+The `projects/template/` folder contains a minimal, production-ready LikeC4 project structure with:
+- ✅ Proper configuration setup
+- ✅ Example model with actors, systems, and containers
+- ✅ C1 and C2 views with best practices
+- ✅ Comprehensive README with getting started guide
+- ✅ LLM-INSTRUCTIONS.md for AI assistant workflows
+
+**To create a new project:**
+
+```bash
+# 1. Copy the template folder
+cp -r projects/template projects/my-new-project
+
+# 2. Navigate to your new project
+cd projects/my-new-project
+
+# 3. Update the configuration
+# Edit likec4.config.json:
+#   - Change "name" to "my-new-project"
+#   - Update "title" to your project name
+
+# 4. Customize the model
+# Edit system-model.c4:
+#   - Replace example elements with your architecture
+#   - Update relationships and descriptions
+
+# 5. Preview your diagrams
+cd ../..  # Back to workspace root
+npx likec4 start
+```
+
+### What's Included in the Template
+
+| File | Purpose |
+|------|---------|
+| **likec4.config.json** | Project configuration with shared specs included |
+| **system-model.c4** | Minimal model with example actor, system, containers, and relationships |
+| **system-views.c4** | C1 context and C2 container views with layout hints |
+| **README.md** | Comprehensive guide for humans with quick start, best practices, and workflows |
+| **LLM-INSTRUCTIONS.md** | Detailed instructions for AI assistants (like GitHub Copilot) on how to work with LikeC4 projects |
+
+### Template Features
+
+- **Minimal but Complete**: Includes only essential files - easy to extend when needed
+- **Best Practices Built-In**: Follows all 10 core rules from this repository
+- **Well-Documented**: Extensive README and LLM guidance
+- **Ready to Extend**: Clear instructions for adding sequences, deployment, and C3 views
+- **AI-Friendly**: Includes comprehensive LLM-INSTRUCTIONS.md for assistant workflows
+
+### Learn from the Template
+
+Even if you don't start a new project, the template is valuable for:
+- 📖 **Learning LikeC4 syntax** - Clean, commented examples
+- 🎯 **Understanding best practices** - Every element follows conventions
+- 🤖 **Training AI assistants** - Use LLM-INSTRUCTIONS.md as a prompt guide
+- 🔍 **Quick reference** - Minimal example of proper structure
+
+**👉 See [projects/template/README.md](projects/template/README.md) for full documentation**
