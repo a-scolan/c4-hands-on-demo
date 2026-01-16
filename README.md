@@ -3,6 +3,8 @@
 🔗 **[View Live Diagrams on GitHub Pages](https://a-scolan.github.io/c4-hands-on-demo/)**  
 📋 **[Architecture Decisions (ADR)](./ARCHITECTURE_DECISIONS.md)** - Why Kong? Why MinIO? Why remove S3?
 
+> **Note:** This repository uses [c4_template](https://github.com/your-org/c4_template) as a git subtree for shared specifications, instructions, and examples. See [c4_template's README](https://github.com/your-org/c4_template#using-as-a-git-subtree) for details on synchronizing updates.
+
 This workspace contains two **independent** LikeC4 projects demonstrating architecture evolution:
 
 ## 🎯 Project Structure
