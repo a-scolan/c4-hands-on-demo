@@ -575,67 +575,58 @@ For detailed syntax and examples, visit [LikeC4 Documentation](https://likec4.de
 
 ---
 
-## 🎨 Using the Template
+## 🔄 Keeping Template Files in Sync
 
-Want to start a new architecture documentation project? Use the **ready-to-go template** included in this workspace!
+This repository uses the [c4-template](https://github.com/a-scolan/c4-template) as its foundation. To stay current with improvements to Copilot skills, shared specifications, and example projects, periodically sync from the template.
 
-### Quick Start with Template
+### Three Directories to Always Update Together
 
-The `projects/template/` folder contains a minimal, production-ready LikeC4 project structure with:
-- ✅ Proper configuration setup
-- ✅ Example model with actors, systems, and containers
-- ✅ C1 and C2 views with best practices
-- ✅ Comprehensive README with getting started guide
-- ✅ LLM-INSTRUCTIONS.md for AI assistant workflows
+| Directory | Contains | Why Update |
+|-----------|----------|------------|
+| `.github/` | Copilot instructions & 14 skill files | Better AI assistance workflows |
+| `projects/shared/` | 6 spec files + 28+ SVG icons | Latest element kinds, tags, relationships |
+| `projects/spec-showcase/` | Example C4 diagrams | Reference implementations |
 
-**To create a new project:**
+**Important:** Always update all three directories together to maintain consistency with template standards.
+
+### Recommended: Direct Checkout Method (Simpler)
 
 ```bash
-# 1. Copy the template folder
-cp -r projects/template projects/my-new-project
+# 1. Add template remote (first time only)
+git remote add c4-template https://github.com/a-scolan/c4-template.git
 
-# 2. Navigate to your new project
-cd projects/my-new-project
+# 2. Fetch latest from template
+git fetch c4-template main
 
-# 3. Update the configuration
-# Edit likec4.config.json:
-#   - Change "name" to "my-new-project"
-#   - Update "title" to your project name
+# 3. Update the three essentials
+git checkout c4-template/main -- .github/copilot-instructions.md .github/skills/
+git checkout c4-template/main -- projects/shared/
+git checkout c4-template/main -- projects/spec-showcase/
 
-# 4. Customize the model
-# Edit system-model.c4:
-#   - Replace example elements with your architecture
-#   - Update relationships and descriptions
-
-# 5. Preview your diagrams
-cd ../..  # Back to workspace root
-npx likec4 start
+# 4. Review and commit
+git add .github/ projects/shared/ projects/spec-showcase/
+git commit -m "sync: update template files (copilot instructions, skills, specs, examples)"
+git push
 ```
 
-### What's Included in the Template
+This method is simpler because it only pulls the specific files you need without full subtree history tracking.
 
-| File | Purpose |
-|------|---------|
-| **likec4.config.json** | Project configuration with shared specs included |
-| **system-model.c4** | Minimal model with example actor, system, containers, and relationships |
-| **system-views.c4** | C1 context and C2 container views with layout hints |
-| **README.md** | Comprehensive guide for humans with quick start, best practices, and workflows |
-| **LLM-INSTRUCTIONS.md** | Detailed instructions for AI assistants (like GitHub Copilot) on how to work with LikeC4 projects |
+### Alternative: Git Subtree Method (Full History)
 
-### Template Features
+If you want to preserve complete history of template changes:
 
-- **Minimal but Complete**: Includes only essential files - easy to extend when needed
-- **Best Practices Built-In**: Follows all 10 core rules from this repository
-- **Well-Documented**: Extensive README and LLM guidance
-- **Ready to Extend**: Clear instructions for adding sequences, deployment, and C3 views
-- **AI-Friendly**: Includes comprehensive LLM-INSTRUCTIONS.md for assistant workflows
+```bash
+# Fetch latest
+git fetch c4-template main
 
-### Learn from the Template
+# Pull updates for each subtree with squashed history
+git subtree pull --prefix=.github c4-template main --squash
+git subtree pull --prefix=projects/shared c4-template main --squash
+git subtree pull --prefix=projects/spec-showcase c4-template main --squash
 
-Even if you don't start a new project, the template is valuable for:
-- 📖 **Learning LikeC4 syntax** - Clean, commented examples
-- 🎯 **Understanding best practices** - Every element follows conventions
-- 🤖 **Training AI assistants** - Use LLM-INSTRUCTIONS.md as a prompt guide
-- 🔍 **Quick reference** - Minimal example of proper structure
+# Review and push
+git status
+git push
+```
 
-**👉 See [projects/template/README.md](projects/template/README.md) for full documentation**
+**Note:** The `--squash` flag consolidates all c4-template changes into one commit per sync. Updates are manual—they do not happen automatically.
