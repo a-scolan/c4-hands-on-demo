@@ -1,0 +1,136 @@
+/**
+ * Video Streaming Platform - System Model
+ * 
+ * Defines the logical architecture of a self-hosted VOD streaming platform supporting:
+ * - Fixed 3-tier bitrate transcoding (480p/720p/1080p)
+ * - HLS + DASH dual protocol delivery
+ * - SRS streaming engine for manifest/segment serving
+ * - MinIO S3-compatible object storage
+ * - Docker Compose single-node deployment
+ * 
+ * See ADR/ for architectural decisions:
+ * - ADR 0001: Fixed-bitrate transcoding strategy
+ * - ADR 0002: SRS streaming engine selection
+ * - ADR 0003: MinIO object storage
+ * - ADR 0004: Docker Compose deployment
+ * - ADR 0005: HLS + DASH dual protocol support
+ */
+
+model {
+  
+  // C1: System Context - Primary Actors
+  producer = Actor_Person 'Video Producer' {
+    description 'Content creator who uploads and manages videos'
+  }
+  
+  viewer = Actor_Person 'Viewer' {
+    description 'End user watching videos via web or mobile'
+  }
+  
+  // C1: System Context - External Client Applications
+  webBrowser = Container_Browser 'Web Browser' {
+    description 'Desktop/laptop web browser for video upload and playback'
+    technology 'Chrome, Firefox, Safari, Edge'
+  }
+  
+  mobileDevice = Container_MobileApp 'Mobile Device' {
+    description 'iOS/Android smartphone or tablet for video playback'
+    technology 'iOS Safari / Android Native'
+  }
+  
+  // C1/C2: Primary System
+  videoStreaming = System_New 'Video Streaming Platform' {
+    description 'Self-hosted VOD platform supporting content upload, transcoding, and multi-protocol streaming'
+    
+    // C2: Internal Containers
+    
+    webUI = Container_Spa 'Web UI' {
+      technology 'React SPA'
+      description 'Browser-based interface for video upload, management, and playback with HLS/DASH support'
+    }
+    
+    mobileApp = Container_MobileApp 'Mobile App' {
+      technology 'React Native'
+      description 'Cross-platform mobile application for video browsing and playback'
+    }
+    
+    reverseProxy = Container_ReverseProxy 'Reverse Proxy' {
+      technology 'Nginx 1.24'
+      description 'Edge gateway providing SSL/TLS termination, request routing, rate limiting, and DDoS protection. Routes /ui → Web UI, /api → API Server, /stream → Streaming Engine'
+    }
+    
+    apiServer = Container_Api 'API Server' {
+      technology 'Node.js + Express'
+      description 'RESTful API handling authentication, video metadata, user management, and transcoding job orchestration'
+    }
+    
+    transcoder = Container_ProcessingServer 'Transcoder' {
+      technology 'FFmpeg'
+      description 'Background worker performing fixed 3-tier bitrate transcoding (480p@2Mbps, 720p@5Mbps, 1080p@10Mbps) from original video'
+    }
+    
+    streamingEngine = Container_Api 'Streaming Engine' {
+      technology 'SRS (Simple RTMP Server) 5.0+'
+      description 'Manifest generation and media segment serving for HLS and DASH protocols'
+    }
+    
+    db = Container_Database 'Metadata Database' {
+      technology 'PostgreSQL 15'
+      description 'Stores video metadata, user profiles, auth tokens, playback history, and ACLs'
+    }
+    
+    redisCache = Container_Queue 'Redis Cache' {
+      technology 'Redis 7'
+      description 'In-memory cache for sessions, manifests, JWT token blacklisting, and job queue storage. BullMQ client library (Node.js) runs in API server and transcoder processes.'
+    }
+    
+    storage = Container_ObjectStorage 'Object Storage' {
+      technology 'MinIO (S3-compatible API)'
+      description 'S3-compatible store for originals, encoded segments, manifests, and thumbnails'
+    }
+  }
+  
+  // C1: External Terminals to Edge Gateway
+  webBrowser -[calls]-> videoStreaming.reverseProxy 'HTTPS requests to platform (port 443)'
+  mobileDevice -[calls]-> videoStreaming.reverseProxy 'HTTPS requests to platform (port 443)'
+  
+  // C1/C2: Relationships from Producers
+  producer -[calls]-> webBrowser 'Access platform via browser'
+  producer -[calls]-> mobileDevice 'Access platform via mobile device'
+  
+  // C2: Reverse Proxy routing to internal services
+  videoStreaming.reverseProxy -[calls]-> videoStreaming.webUI 'Route /ui → Serve React SPA'
+  videoStreaming.reverseProxy -[calls]-> videoStreaming.apiServer 'Route /api → REST API'
+  videoStreaming.reverseProxy -[calls]-> videoStreaming.streamingEngine 'Route /stream → HLS/DASH delivery'
+  
+  // C2: Web UI relationships
+  videoStreaming.webUI -[calls]-> videoStreaming.apiServer 'REST API for video operations (HTTPS)'
+  
+  // C2: Mobile App relationships
+  videoStreaming.mobileApp -[calls]-> videoStreaming.reverseProxy 'HTTPS requests for API and streaming'
+  
+  // C2: API Server relationships
+  videoStreaming.apiServer -[reads]-> videoStreaming.db 'Query video metadata and user data'
+  videoStreaming.apiServer -[writes]-> videoStreaming.db 'Store metadata, sessions, user ACLs'
+  videoStreaming.apiServer -[reads]-> videoStreaming.redisCache 'Read cached tokens and sessions'
+  videoStreaming.apiServer -[writes]-> videoStreaming.redisCache 'Cache tokens, sessions, manifest URLs'
+  
+  // C2: Transcoding workflow (async queue pattern per ADR 0001)
+  videoStreaming.apiServer -[writes]-> videoStreaming.redisCache 'Enqueue transcoding jobs (Bull queue)'
+  videoStreaming.transcoder -[reads]-> videoStreaming.redisCache 'Poll for pending encoding jobs'
+  videoStreaming.transcoder -[writes]-> videoStreaming.redisCache 'Update job status and progress'
+  videoStreaming.transcoder -[reads]-> videoStreaming.storage 'Download original video files'
+  videoStreaming.transcoder -[writes]-> videoStreaming.storage 'Store encoded segments (480p/720p/1080p) and manifests'
+  
+  // C2: Streaming delivery workflow (per ADR 0005: HLS + DASH)
+  videoStreaming.streamingEngine -[reads]-> videoStreaming.storage 'Fetch HLS/DASH manifests and segments'
+  videoStreaming.streamingEngine -[reads]-> videoStreaming.db 'Query access control for content delivery'
+  videoStreaming.webUI -[calls]-> videoStreaming.streamingEngine 'Request HLS/DASH streams (.m3u8, .mpd)'
+  
+  // C1: Viewer - Content Delivery
+  viewer -[calls]-> webBrowser 'Watch videos via web browser'
+  viewer -[calls]-> mobileDevice 'Watch videos on mobile device'
+  
+  // C2: Viewer - Streaming backend (internal API calls)
+  videoStreaming.webUI -[calls]-> videoStreaming.apiServer 'Request playback metadata and auth'
+}

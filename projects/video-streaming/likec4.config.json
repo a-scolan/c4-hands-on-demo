@@ -1,0 +1,17 @@
+{
+  "$schema": "https://likec4.dev/schemas/config.json",
+  "name": "video-streaming",
+  "title": "Video Streaming Platform",
+  "include": {
+    "paths": [
+      "../shared",
+      "system-model.c4",
+      "system-views.c4",
+      "deployment-model.c4",
+      "deployment-views.c4"
+    ]
+  },
+  "imageAliases": {
+    "@": "../shared/images"
+  }
+}

@@ -1,0 +1,137 @@
+/**
+ * Deployment Views - Video Streaming Platform
+ * 
+ * Visualizes the tiered datacenter deployment architecture.
+ * See ADR 0006 for scaling-ready infrastructure decisions.
+ */
+
+views 'Deployment' {
+  
+  // Overview: Full infrastructure with all tiers
+  deployment view overview {
+    title 'Production Datacenter - Tiered Architecture'
+    description '''
+      Complete production deployment with tiered network zones.
+      Internet → DMZ (edge) → App tier (UI/API) → Processing tier (transcoding/streaming) → Data tier (DB/cache/storage).
+      Phase 1: Single-node with logical separation. Phase 2+: Multi-node with physical VLANs.
+    '''
+    
+    // Include all zones and their complete hierarchies
+    include internet
+    include internet.*
+    include Production
+    include Production.DmzZone
+    include Production.DmzZone.*
+    include Production.AppTierZone
+    include Production.AppTierZone.*
+    include Production.ProcTierZone
+    include Production.ProcTierZone.*
+    include Production.DataTierZone
+    include Production.DataTierZone.*
+    
+    autoLayout TopBottom
+  }
+  
+  // DMZ Zone: Public-facing edge services
+  deployment view dmz_zone {
+    title 'DMZ Zone - Edge Services'
+    description '''
+      Demilitarized zone for internet-facing services (VLAN 10, 10.0.10.0/24).
+      Internet → NGINX reverse proxy → Routes to internal tiers.
+      Security: SSL/TLS termination, DDoS protection, rate limiting.
+    '''
+    
+    include internet
+    include Production
+    include element.tag == #Dmz
+    include Production.AppTierZone
+    include Production.ProcTierZone
+    
+    autoLayout TopBottom
+  }
+  
+  // Application Tier: Web UI and API services
+  deployment view app_tier {
+    title 'Application Tier - Web UI & API'
+    description '''
+      Application services tier for user-facing business logic (VLAN 20, 10.0.20.0/24).
+      Web UI serves React SPA, API handles auth/metadata/transcoding orchestration.
+      Connections: DMZ → App tier, App tier → Data tier.
+    '''
+    
+    include Production
+    include Production.DmzZone
+    include Production.DmzZone.ProdNginxVm
+    include Production.DmzZone.ProdNginxVm.*
+    include element.tag == #AppTier
+    include Production.DataTierZone
+    
+    autoLayout TopBottom
+  }
+  
+  // Processing Tier: Compute-intensive workloads
+  deployment view processing_tier {
+    title 'Processing Tier - Transcoding & Streaming'
+    description '''
+      Processing tier for CPU-intensive transcoding and streaming delivery (VLAN 30, 10.0.30.0/24).
+      Transcoder polls Redis job queue, encodes videos to 480p/720p/1080p HLS+DASH.
+      SRS streaming engine proxies manifests/segments from MinIO to viewers.
+      Scaling: Add transcoder workers horizontally as upload volume grows.
+    '''
+    
+    include Production
+    include Production.DmzZone
+    include Production.DmzZone.ProdNginxVm
+    include Production.DmzZone.ProdNginxVm.ProdNginxApp
+    include element.tag == #ProcTier
+    include Production.DataTierZone
+    
+    autoLayout TopBottom
+  }
+  
+  // Data Tier: Databases, cache, object storage
+  deployment view data_tier {
+    title 'Data Tier - Persistence Layer'
+    description '''
+      Data persistence tier for metadata, cache, and video object storage (VLAN 40, 10.0.40.0/24).
+      PostgreSQL: Video metadata, users, sessions, ACLs.
+      Redis: Session cache, manifest cache, JWT blacklist, Bull job queue.
+      MinIO: S3-compatible object storage for videos, segments, manifests.
+      Scaling: MinIO distributed mode (4-node cluster, Phase 2), PostgreSQL read replicas.
+    '''
+    
+    include Production
+    include Production.AppTierZone
+    include Production.AppTierZone.ProdAppVm
+    include Production.AppTierZone.ProdAppVm.*
+    include Production.ProcTierZone
+    include Production.ProcTierZone.ProdTranscoderVm
+    include Production.ProcTierZone.ProdTranscoderVm.ProdTranscoderApp
+    include Production.ProcTierZone.ProdStreamingVm
+    include Production.ProcTierZone.ProdStreamingVm.ProdSrsApp
+    include element.tag == #DataTier
+    
+    autoLayout TopBottom
+  }
+  
+  // User Access Flow: Internet to application
+  deployment view user_access {
+    title 'User Access Flow - Client to Services'
+    description '''
+      End-to-end user access flow from client devices through edge to application services.
+      User device → Internet → DMZ NGINX (SSL termination) → App tier Web UI/API.
+      Client-side: Browser (React SPA) and mobile apps run on user devices.
+    '''
+    
+    include internet
+    include internet.*
+    include Production
+    include Production.DmzZone
+    include Production.DmzZone.*
+    include Production.AppTierZone
+    include Production.AppTierZone.*
+    
+    autoLayout TopBottom
+  }
+}
+

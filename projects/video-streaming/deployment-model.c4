@@ -1,0 +1,448 @@
+/**
+ * Deployment Model - Video Streaming Platform
+ * 
+ * Defines the runtime deployment infrastructure using tiered datacenter architecture.
+ * See ADR 0004 for Docker Compose orchestration and ADR 0006 for datacenter scaling strategy.
+ * 
+ * Infrastructure organization:
+ * - Internet zone: User connections and external internet
+ * - Production environment: Tiered bare-metal datacenter
+ *   - DMZ zone (VLAN 10): Reverse proxy edge services
+ *   - Application tier (VLAN 20): Web UI and API services
+ *   - Processing tier (VLAN 30): Transcoding workers and streaming engine
+ *   - Data tier (VLAN 40): Databases, cache, object storage
+ * 
+ * Scaling progression:
+ * - Phase 1: Single node with logical tier separation (Docker networks)
+ * - Phase 2+: Multi-node with physical VLAN separation
+ */
+
+deployment {
+
+  // Internet zone: External connections
+  internet = Zone_Internet 'Internet' {
+    description 'Public internet where users access the platform'
+    
+    // Client-side deployments (run on user devices, not server infrastructure)
+    UserBrowserInstance = Node_App 'user-browser' {
+      description 'Web UI deployed as browser application. React SPA downloaded and executed in user browser'
+      technology 'Browser (Chrome/Firefox/Safari/Edge)'
+      instanceOf videoStreaming.webUI
+    }
+    
+    UserMobileInstance = Node_App 'user-mobile' {
+      description 'Mobile app deployed to user smartphones and tablets via app stores'
+      technology 'iOS/Android device'
+      instanceOf videoStreaming.mobileApp
+    }
+  }
+
+  // Production bare-metal datacenter environment
+  Production = Node_Datacenter 'Production Environment' {
+    description '''
+      Production bare-metal datacenter with tiered network zones.
+      Hardware: 16-core CPU, 64GB RAM, 2TB NVMe + 10TB HDD (Phase 1 single node).
+      Networking: VLANs for tier isolation, firewall rules enforce inter-tier policies.
+    '''
+    
+    // DMZ Zone: Public-facing edge services (VLAN 10, 10.0.10.0/24)
+    DmzZone = Zone_Vlan 'DMZ Zone' {
+      #Dmz
+      description '''
+        Demilitarized zone for public-facing services.
+        
+        | Property | Value |
+        |:---------|:------|
+        | VLAN | 10 |
+        | Network | 10.0.10.0/24 |
+        | Gateway | 10.0.10.1 |
+        | Purpose | Edge services, SSL/TLS termination |
+        | Firewall Inbound | Internet → 443/80 (HTTPS/HTTP) |
+        | Firewall Outbound | DMZ → AppTier 8000 (HTTP), DMZ → ProcTier 8080 (HTTP) |
+        | Security | DDoS protection, rate limiting, WAF |
+      '''
+      
+      ProdNginxVm = Node_Server 'prod-nginx-vm' {
+        technology 'Ubuntu 22.04, Nginx 1.24, Docker Compose (Phase 1)'
+        
+        metadata {
+          eth0 "10.0.10.10/24"
+          eth1 "203.0.113.10 (public)"
+          hostname "prod-nginx-vm"
+          os "Ubuntu 22.04 LTS"
+          cpu "4 vCPU"
+          ram "8 GB"
+          disk "100 GB SSD"
+          port_external "443, 80"
+          port_internal "8000, 8080"
+          orchestration "Docker Compose (Phase 1)"
+          monitoring "Nginx metrics on 9113"
+        }
+        
+        description '''
+          Reverse proxy VM for SSL termination and routing
+          
+          | Property | Value |
+          |:---------|:------|
+          | eth0 | 10.0.10.10/24 |
+          | eth1 | 203.0.113.10 (public) |
+          | Hostname | prod-nginx-vm |
+          | OS | Ubuntu 22.04 LTS |
+          | CPU | 4 vCPU |
+          | RAM | 8 GB |
+          | Disk | 100 GB SSD |
+          | Port (external) | 443, 80 |
+          | Port (internal) | 8000, 8080 |
+          | Orchestration | Docker Compose (Phase 1) |
+          | Monitoring | Nginx metrics on 9113 |
+        '''
+        ProdNginxApp = Node_App 'prod-nginx-app' {
+          description 'Nginx reverse proxy. Routes /ui → WebUI, /api → API, /stream → SRS'
+          technology 'Nginx 1.24 (Docker container)'
+          instanceOf videoStreaming.reverseProxy
+        }
+      }
+    }
+    
+    // Application Tier: Web UI and API services (VLAN 20, 10.0.20.0/24)
+    AppTierZone = Zone_Vlan 'Application Tier' {
+      #AppTier
+      description '''
+        Application services tier for user-facing business logic.
+        
+        | Property | Value |
+        |:---------|:------|
+        | VLAN | 20 |
+        | Network | 10.0.20.0/24 |
+        | Gateway | 10.0.20.1 |
+        | Purpose | Web UI and API services |
+        | Firewall Inbound | DMZ → 8000 (HTTP from reverse proxy) |
+        | Firewall Outbound | AppTier → DataTier 5432/6379/9000 |
+        | Security | No internet access, internal only |
+      '''
+      
+      ProdAppVm = Node_Server 'prod-app-vm' {
+        technology 'Ubuntu 22.04, Node.js 18, Docker Compose (Phase 1)'
+        
+        metadata {
+          eth0 "10.0.20.10/24"
+          hostname "prod-app-vm"
+          os "Ubuntu 22.04 LTS"
+          cpu "8 vCPU"
+          ram "16 GB"
+          disk "200 GB SSD"
+          port "8000 (HTTP)"
+          orchestration "Docker Compose (Phase 1)"
+          scaling "Future: Load-balanced 2-3 nodes"
+        }
+        
+        description '''
+          Application server VM hosting Web UI and API services
+          
+          | Property | Value |
+          |:---------|:------|
+          | eth0 | 10.0.20.10/24 |
+          | Hostname | prod-app-vm |
+          | OS | Ubuntu 22.04 LTS |
+          | CPU | 8 vCPU |
+          | RAM | 16 GB |
+          | Disk | 200 GB SSD |
+          | Port | 8000 (HTTP) |
+          | Orchestration | Docker Compose (Phase 1) |
+          | Scaling | Future: Load-balanced 2-3 nodes |
+        '''
+        
+        ProdWebUiApp = Node_App 'prod-webui-app' {
+          description 'React SPA served via Nginx. Provides UI for video upload and playback'
+          technology 'Node.js 18 (build), Nginx (serve), Docker container'
+          instanceOf videoStreaming.webUI
+        }
+        
+        ProdApiApp = Node_App 'prod-api-app' {
+          description 'RESTful API service. Handles auth, metadata, enqueues transcoding jobs to Redis'
+          technology 'Node.js 18, Express, Bull (job queue client), Docker container'
+          instanceOf videoStreaming.apiServer
+        }
+      }
+    }
+    
+    // Processing Tier: Compute-intensive transcoding and streaming (VLAN 30, 10.0.30.0/24)
+    ProcTierZone = Zone_Vlan 'Processing Tier' {
+      #ProcTier
+      description '''
+        Processing tier for CPU-intensive transcoding and streaming delivery.
+        
+        | Property | Value |
+        |:---------|:------|
+        | VLAN | 30 |
+        | Network | 10.0.30.0/24 |
+        | Gateway | 10.0.30.1 |
+        | Purpose | Transcoding workers, streaming engine |
+        | Firewall Inbound | DMZ → 8080 (streaming), No AppTier access |
+        | Firewall Outbound | ProcTier → DataTier 6379/9000 (Redis, MinIO) |
+        | Security | Isolated processing, no direct internet |
+        | Scaling | Horizontal: Add transcoder workers as needed |
+      '''
+      
+      ProdTranscoderVm = Node_Server 'prod-transcoder-vm' {
+        technology 'Ubuntu 22.04, FFmpeg 6.0, Docker Compose (Phase 1)'
+        
+        metadata {
+          eth0 "10.0.30.10/24"
+          hostname "prod-transcoder-vm"
+          os "Ubuntu 22.04 LTS"
+          cpu "16 vCPU"
+          ram "32 GB"
+          disk "500 GB NVMe (temp encoding)"
+          port "Internal only"
+          orchestration "Docker Compose (Phase 1)"
+          scaling "Phase 3: Scale to 3-5 nodes"
+          gpu "Phase 5+: NVENC hardware acceleration"
+        }
+        
+        description '''
+          Transcoding worker VM with high CPU/memory for video encoding
+          
+          | Property | Value |
+          |:---------|:------|
+          | eth0 | 10.0.30.10/24 |
+          | Hostname | prod-transcoder-vm |
+          | OS | Ubuntu 22.04 LTS |
+          | CPU | 16 vCPU |
+          | RAM | 32 GB |
+          | Disk | 500 GB NVMe (temp encoding) |
+          | Port | Internal only |
+          | Orchestration | Docker Compose (Phase 1) |
+          | Scaling | Phase 3: Scale to 3-5 nodes |
+          | GPU | Phase 5+: NVENC hardware acceleration |
+        '''
+        
+        ProdTranscoderApp = Node_App 'prod-transcoder-app' {
+          description 'FFmpeg transcoding worker. Polls Redis queue, encodes 480p/720p/1080p HLS+DASH'
+          technology 'FFmpeg 6.0, Node.js 18, Bull worker, Docker container'
+          instanceOf videoStreaming.transcoder
+        }
+      }
+      
+      ProdStreamingVm = Node_Server 'prod-streaming-vm' {
+        technology 'Ubuntu 22.04, SRS 5.0+, Docker Compose (Phase 1)'
+        
+        metadata {
+          eth0 "10.0.30.60/24"
+          hostname "prod-streaming-vm"
+          os "Ubuntu 22.04 LTS"
+          cpu "8 vCPU"
+          ram "16 GB"
+          disk "200 GB SSD"
+          port "8080 (HTTP streaming)"
+          orchestration "Docker Compose (Phase 1)"
+          scaling "Phase 4: SRS cluster with edge nodes"
+        }
+        
+        description '''
+          Streaming engine VM for HLS/DASH manifest serving
+          
+          | Property | Value |
+          |:---------|:------|
+          | eth0 | 10.0.30.60/24 |
+          | Hostname | prod-streaming-vm |
+          | OS | Ubuntu 22.04 LTS |
+          | CPU | 8 vCPU |
+          | RAM | 16 GB |
+          | Disk | 200 GB SSD |
+          | Port | 8080 (HTTP streaming) |
+          | Orchestration | Docker Compose (Phase 1) |
+          | Scaling | Phase 4: SRS cluster with edge nodes |
+        '''
+        
+        ProdSrsApp = Node_App 'prod-srs-app' {
+          description 'SRS server proxies HLS/DASH manifests and segments from MinIO to viewers'
+          technology 'SRS 5.0+, C++, Docker container'
+          instanceOf videoStreaming.streamingEngine
+        }
+      }
+    }
+    
+    // Data Tier: Databases, cache, object storage (VLAN 40, 10.0.40.0/24)
+    DataTierZone = Zone_Vlan 'Data Tier' {
+      #DataTier
+      description '''
+        Data persistence tier for metadata, cache, and video object storage.
+        
+        | Property | Value |
+        |:---------|:------|
+        | VLAN | 40 |
+        | Network | 10.0.40.0/24 |
+        | Gateway | 10.0.40.1 |
+        | Purpose | Databases, cache, object storage |
+        | Firewall Inbound | AppTier/ProcTier → 5432/6379/9000 |
+        | Firewall Outbound | No internet access (air-gapped) |
+        | Security | Encrypted at rest, network isolation |
+        | Storage Backend | NFS/SAN for PostgreSQL/Redis, Local disks for MinIO |
+        | Backup | Daily snapshots, offsite replication |
+      '''
+      
+      ProdDbVm = Node_Server 'prod-db-vm' {
+        technology 'Ubuntu 22.04, PostgreSQL 15, Docker Compose (Phase 1)'
+        
+        metadata {
+          eth0 "10.0.40.10/24"
+          hostname "prod-db-vm"
+          os "Ubuntu 22.04 LTS"
+          cpu "8 vCPU"
+          ram "32 GB"
+          disk "1 TB SSD (NFS-backed)"
+          port "5432 (PostgreSQL)"
+          orchestration "Docker Compose (Phase 1)"
+          backup "Daily pg_dump + WAL archiving"
+          scaling "Phase 4: Add read replicas"
+        }
+        
+        description '''
+          PostgreSQL database VM for metadata and user data
+          
+          | Property | Value |
+          |:---------|:------|
+          | eth0 | 10.0.40.10/24 |
+          | Hostname | prod-db-vm |
+          | OS | Ubuntu 22.04 LTS |
+          | CPU | 8 vCPU |
+          | RAM | 32 GB |
+          | Disk | 1 TB SSD (NFS-backed) |
+          | Port | 5432 (PostgreSQL) |
+          | Orchestration | Docker Compose (Phase 1) |
+          | Backup | Daily pg_dump + WAL archiving |
+          | Scaling | Phase 4: Add read replicas |
+        '''
+        
+        ProdPostgresApp = Node_App 'prod-postgres-app' {
+          description 'PostgreSQL database. Stores video metadata, users, sessions, ACLs'
+          technology 'PostgreSQL 15, Docker container'
+          instanceOf videoStreaming.db
+        }
+        
+        ProdPgVolume = Node_App 'prod-pg-volume' {
+          description 'Persistent volume for PostgreSQL data directory (/var/lib/postgresql/data)'
+          technology 'Docker volume (local driver), NFS mount to SAN'
+        }
+      }
+      
+      ProdCacheVm = Node_Server 'prod-cache-vm' {
+        technology 'Ubuntu 22.04, Redis 7, Docker Compose (Phase 1)'
+        
+        metadata {
+          eth0 "10.0.40.20/24"
+          hostname "prod-cache-vm"
+          os "Ubuntu 22.04 LTS"
+          cpu "4 vCPU"
+          ram "16 GB"
+          disk "100 GB SSD (AOF persistence)"
+          port "6379 (Redis)"
+          orchestration "Docker Compose (Phase 1)"
+          persistence "AOF (Append-Only File) enabled"
+        }
+        
+        description '''
+          Redis cache and job queue VM
+          
+          | Property | Value |
+          |:---------|:------|
+          | eth0 | 10.0.40.20/24 |
+          | Hostname | prod-cache-vm |
+          | OS | Ubuntu 22.04 LTS |
+          | CPU | 4 vCPU |
+          | RAM | 16 GB |
+          | Disk | 100 GB SSD (AOF persistence) |
+          | Port | 6379 (Redis) |
+          | Orchestration | Docker Compose (Phase 1) |
+          | Persistence | AOF (Append-Only File) enabled |
+        '''
+        
+        ProdRedisApp = Node_App 'prod-redis-app' {
+          description 'Redis for session cache, manifest cache, JWT blacklist, Bull job queue storage'
+          technology 'Redis 7, Docker container'
+          instanceOf videoStreaming.redisCache
+        }
+        
+        ProdRedisVolume = Node_App 'prod-redis-volume' {
+          description 'Persistent volume for Redis AOF (Append-Only File) persistence'
+          technology 'Docker volume (local driver), NFS mount to SAN'
+        }
+      }
+      
+      ProdStorageVm = Node_Server 'prod-storage-vm' {
+        technology 'Ubuntu 22.04, MinIO, Docker Compose (Phase 1). Dedicated 10TB HDD pool'
+        
+        metadata {
+          eth0 "10.0.40.30/24"
+          hostname "prod-storage-vm"
+          os "Ubuntu 22.04 LTS"
+          cpu "8 vCPU"
+          ram "16 GB"
+          disk "10 TB HDD (dedicated pool)"
+          port "9000 (S3 API), 9001 (Console)"
+          orchestration "Docker Compose (Phase 1)"
+          scaling "Phase 2: 4-node cluster (10.0.40.30-33)"
+          mode "Single-node (Phase 1), Distributed with erasure coding (Phase 2)"
+        }
+        
+        description '''
+          MinIO object storage VM for videos and segments
+          
+          | Property | Value |
+          |:---------|:------|
+          | eth0 | 10.0.40.30/24 |
+          | Hostname | prod-storage-vm |
+          | OS | Ubuntu 22.04 LTS |
+          | CPU | 8 vCPU |
+          | RAM | 16 GB |
+          | Disk | 10 TB HDD (dedicated pool) |
+          | Port | 9000 (S3 API), 9001 (Console) |
+          | Orchestration | Docker Compose (Phase 1) |
+          | Scaling | Phase 2: 4-node cluster (10.0.40.30-33) |
+          | Mode | Single-node (Phase 1), Distributed with erasure coding (Phase 2) |
+        '''
+        
+        ProdMinioApp = Node_App 'prod-minio-app' {
+          description 'MinIO S3-compatible object storage. Stores raw videos, segments, manifests, thumbnails'
+          technology 'MinIO (distributed mode ready), Go, Docker container'
+          instanceOf videoStreaming.storage
+        }
+        
+        ProdMinioVolume = Node_App 'prod-minio-volume' {
+          description 'Persistent volume for MinIO data (videos, segments, manifests). 10TB capacity'
+          technology 'Docker volume (local driver), dedicated HDD pool'
+        }
+      }
+    }
+  }
+
+  // Deployment relationships: Network flows between zones and services
+
+  // Client-side → DMZ: User devices to edge gateway
+  internet.UserBrowserInstance -[https]-> Production.DmzZone.ProdNginxVm.ProdNginxApp 'HTTPS requests (port 443)'
+  internet.UserMobileInstance -[https]-> Production.DmzZone.ProdNginxVm.ProdNginxApp 'HTTPS requests (port 443)'
+
+  // DMZ → Application Tier: Reverse proxy routing
+  Production.DmzZone.ProdNginxVm.ProdNginxApp -[http]-> Production.AppTierZone.ProdAppVm.ProdWebUiApp 'Route /ui → WebUI'
+  Production.DmzZone.ProdNginxVm.ProdNginxApp -[http]-> Production.AppTierZone.ProdAppVm.ProdApiApp 'Route /api → API'
+  Production.DmzZone.ProdNginxVm.ProdNginxApp -[http]-> Production.ProcTierZone.ProdStreamingVm.ProdSrsApp 'Route /stream → SRS'
+
+  // Application Tier → Data Tier: API database connections
+  Production.AppTierZone.ProdAppVm.ProdApiApp -[tcp]-> Production.DataTierZone.ProdDbVm.ProdPostgresApp 'SQL queries (port 5432)'
+  Production.AppTierZone.ProdAppVm.ProdApiApp -[tcp]-> Production.DataTierZone.ProdCacheVm.ProdRedisApp 'Enqueue jobs, cache ops (port 6379)'
+  Production.AppTierZone.ProdAppVm.ProdApiApp -[https]-> Production.DataTierZone.ProdStorageVm.ProdMinioApp 'S3 API - upload originals (port 9000)'
+
+  // Processing Tier → Data Tier: Transcoder data access
+  Production.ProcTierZone.ProdTranscoderVm.ProdTranscoderApp -[tcp]-> Production.DataTierZone.ProdDbVm.ProdPostgresApp 'Update encoding status (port 5432)'
+  Production.ProcTierZone.ProdTranscoderVm.ProdTranscoderApp -[tcp]-> Production.DataTierZone.ProdCacheVm.ProdRedisApp 'Poll job queue (port 6379)'
+  Production.ProcTierZone.ProdTranscoderVm.ProdTranscoderApp -[https]-> Production.DataTierZone.ProdStorageVm.ProdMinioApp 'S3 API - read originals, write segments (port 9000)'
+
+  // Processing Tier → Data Tier: Streaming engine data access
+  Production.ProcTierZone.ProdStreamingVm.ProdSrsApp -[https]-> Production.DataTierZone.ProdStorageVm.ProdMinioApp 'S3 API - fetch manifests and segments (port 9000)'
+
+  // Data Tier: Persistent volumes
+  Production.DataTierZone.ProdDbVm.ProdPostgresApp -[nfs]-> Production.DataTierZone.ProdDbVm.ProdPgVolume 'PostgreSQL data persistence'
+  Production.DataTierZone.ProdCacheVm.ProdRedisApp -[nfs]-> Production.DataTierZone.ProdCacheVm.ProdRedisVolume 'Redis AOF persistence'
+  Production.DataTierZone.ProdStorageVm.ProdMinioApp -[nfs]-> Production.DataTierZone.ProdStorageVm.ProdMinioVolume 'MinIO object persistence'
+}

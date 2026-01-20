@@ -1,0 +1,114 @@
+/**
+ * System Views - Video Streaming Platform
+ * 
+ * Defines visualizations of the video streaming architecture:
+ * - C1: System Context - High-level view showing system in its environment
+ * - C2: Container View (Full) - All containers and internal architecture
+ * - C2: Container View (Content Upload) - Upload and transcoding workflow
+ * - C2: Container View (Content Delivery) - Streaming and playback workflow
+ * - C2: Data Infrastructure - Storage, database, and caching layer
+ * - Index: Architecture overview entry point
+ */
+
+views {
+  
+  /**
+   * C1: System Context
+   * High-level view showing the video streaming platform, its users, and client types
+   * Suitable for business stakeholders and architects
+   */
+  view c1_context {
+    title 'C1 / System Context'
+    description 'Overview of the video streaming platform with producers, viewers, and client applications'
+    
+    include producer
+    include viewer
+    include videoStreaming
+    include webBrowser
+    include mobileDevice
+  }
+  
+  /**
+   * C2: Containers - Full System Architecture
+   * Detailed internal view showing all containers, databases, and integrations
+   * Shows complete flow from upload through playback
+   */
+  view c2_containers_full {
+    title 'C2 / System Architecture - Full'
+    description 'Complete system showing all containers: UI, API, transcoding, streaming, storage, and databases'
+    
+    include producer
+    include viewer
+    include videoStreaming.*
+    include webBrowser
+    include mobileDevice
+  }
+  
+  /**
+   * C2: Containers - Content Upload & Transcoding Flow
+   * Focused view on the video upload and encoding workflow
+   * Highlights the fixed 3-tier bitrate transcoding strategy (480p/720p/1080p)
+   */
+  view c2_upload_transcoding {
+    title 'C2 / Upload & Transcoding Workflow'
+    description 'Video upload flow: Producer → Browser → Reverse Proxy → Web UI → API enqueues job to Redis → Transcoder polls queue → Encodes to 480p/720p/1080p → Stored in MinIO'
+    
+    include producer
+    include webBrowser
+    include videoStreaming.reverseProxy
+    include videoStreaming.webUI
+    include videoStreaming.apiServer
+    include videoStreaming.redisCache
+    include videoStreaming.transcoder
+    include videoStreaming.storage
+    include videoStreaming.db
+  }
+  
+  /**
+   * C2: Containers - Content Delivery & Playback Flow
+   * Focused view on the streaming and playback workflow
+   * Highlights HLS/DASH dual protocol delivery via SRS streaming engine
+   */
+  view c2_playback_delivery {
+    title 'C2 / Streaming & Playback Workflow'
+    description 'Video playback flow: Viewer → Browser/Mobile → Reverse Proxy → API (metadata) + SRS (HLS/DASH streams) → Segments from MinIO'
+    
+    include viewer
+    include videoStreaming.reverseProxy
+    include videoStreaming.webUI
+    include videoStreaming.mobileApp
+    include videoStreaming.apiServer
+    include videoStreaming.streamingEngine
+    include videoStreaming.storage
+    include webBrowser
+    include mobileDevice
+  }
+  
+  /**
+   * C2: Containers - Data & Infrastructure Layer
+   * Focused view on storage, databases, and caching infrastructure
+   * Shows how data is persisted and cached across the platform
+   */
+  view c2_data_infrastructure {
+    title 'C2 / Data & Infrastructure Layer'
+    description 'Database (PostgreSQL), cache (Redis), and object storage (MinIO) supporting the entire platform'
+    
+    include videoStreaming
+    include videoStreaming.apiServer
+    include videoStreaming.transcoder
+    include videoStreaming.streamingEngine
+    include videoStreaming.db
+    include videoStreaming.redisCache
+    include videoStreaming.storage
+  }
+  
+  /**
+   * Index View
+   * Entry point for exploring the architecture
+   * Extends C1 context to provide high-level system overview
+   */
+  view index extends c1_context {
+    title 'Video Streaming Platform - Architecture Overview'
+    description 'Self-hosted VOD platform with HLS/DASH streaming. Navigate to detailed views for deeper exploration.'
+  }
+}
