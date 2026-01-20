@@ -71,8 +71,7 @@ deployment {
 						| OS | Ubuntu 22.04 LTS |
 						| CPU | 4 vCPU |
 						| RAM | 8 GB |
-						| Port | 443 |
-					"""
+				"""
 
 				apiApp = Node_App "API Gateway App" {
 					instanceOf vault.api
@@ -91,7 +90,6 @@ deployment {
 					| OS | Ubuntu 22.04 LTS |
 					| CPU | 2 vCPU |
 					| RAM | 4 GB |
-					| Port | 80 |
 				"""
 
 				webServerApp = Node_App "Web Server App" {
@@ -126,7 +124,6 @@ deployment {
 					| OS | Ubuntu 22.04 LTS |
 					| CPU | 2 vCPU |
 					| RAM | 4 GB |
-					| Port | 3001 |
 				"""
 
 				uploadApp = Node_App "Upload Service App" {
@@ -147,8 +144,7 @@ deployment {
 					| OS | Ubuntu 22.04 LTS |
 					| CPU | 4 vCPU |
 					| RAM | 8 GB |
-					| Port | 3002 |
-					| Cache | Redis (local) |
+
 				"""
 
 				retrievalApp = Node_App "Retrieval Service App" {
@@ -203,8 +199,7 @@ deployment {
 					| OS | Ubuntu 22.04 LTS |
 					| CPU | 4 vCPU |
 					| RAM | 8 GB |
-					| Port | 5672 |
-					| Clustering | enabled |
+
 				"""
 
 				queueApp = Node_App "RabbitMQ App" {
@@ -238,8 +233,7 @@ deployment {
 					| OS | Ubuntu 22.04 LTS |
 					| CPU | 8 vCPU |
 					| RAM | 32 GB |
-					| Port | 27017 |
-					| Disk | 1 TB SSD |
+
 					| Replication | 3-node replica set |
 					| Encryption | at-rest enabled |
 				"""
@@ -310,6 +304,9 @@ deployment {
 		}
 		Prod.AppTier.ProdRetrievalVm.retrievalApp -> Prod.DataTier.ProdStorageVm.storageApp "Fetch objects" {
 			description "3002 -> 9000-9001"
+		}
+		Prod.ProcTier.ProdWorkerVm.workerApp -> Internet.VirusTotalService.scannerInstance "Scan files" {
+			description "any -> 443 (HTTPS)"
 		}
 	}
 }

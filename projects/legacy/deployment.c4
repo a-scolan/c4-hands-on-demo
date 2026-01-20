@@ -58,8 +58,7 @@ deployment {
 			"""
 			
 			// Load Balancer for frontend
-			ProdLbVm = Node_Vm "ProdLbVm" {
-				technology "HAProxy"
+		ProdLbVm = Node_Vm "prod-lb-vm" {
 				description """
 						SSL termination, traffic distribution
 					
@@ -69,8 +68,7 @@ deployment {
 						| OS | CentOS 8 |
 						| CPU | 4 vCPU |
 						| RAM | 8 GB |
-						| Port | 443 |
-					"""
+				"""
 
 				lbApp = Node_App "Load Balancer App" {
 					instanceOf vault.loadBalancer
@@ -91,8 +89,8 @@ deployment {
 			"""
 			
 			// Monolith VM (Primary)
-			ProdMonolithVm01 = Node_Vm "ProdMonolithVm01" {
-				#Deployment
+		ProdMonolithVm01 = Node_Vm "prod-monolith-vm-01" {
+			#Deployment
 				technology "Java 17 / Spring Boot"
 				description """
 						Primary monolithic application instance
@@ -103,8 +101,7 @@ deployment {
 						| OS | CentOS 8 |
 						| CPU | 8 vCPU |
 						| RAM | 16 GB |
-						| Port | 8080 |
-						| JVM Heap | 12 GB |
+
 					"""
 
 				monolithApp = Node_App "Monolith App (Primary)" {
@@ -113,7 +110,7 @@ deployment {
 			}
 
 			// Monolith VM (Secondary - hot standby)
-			ProdMonolithVm02 = Node_Vm "ProdMonolithVm02" {
+		ProdMonolithVm02 = Node_Vm "prod-monolith-vm-02" {
 				#Deployment
 				technology "Java 17 / Spring Boot"
 				description """
@@ -125,9 +122,7 @@ deployment {
 						| OS | CentOS 8 |
 						| CPU | 8 vCPU |
 						| RAM | 16 GB |
-						| Port | 8080 |
-						| JVM Heap | 12 GB |
-						| Mode | hot-standby |
+
 					"""
 
 				monolithApp = Node_App "Monolith App (Secondary)" {
@@ -149,7 +144,7 @@ deployment {
 			"""
 			
 			// PostgreSQL Database
-			ProdDatabaseVm = Node_Vm "ProdDatabaseVm" {
+		ProdDatabaseVm = Node_Vm "prod-database-vm" {
 				#Deployment
 				technology "PostgreSQL 14"
 				description """
@@ -161,7 +156,7 @@ deployment {
 						| OS | CentOS 8 |
 						| CPU | 16 vCPU |
 						| RAM | 64 GB |
-						| Port | 5432 |
+
 						| Disk | 2 TB SSD |
 						| Replication | primary + 1 standby |
 						| Encryption | at-rest enabled |
@@ -174,7 +169,7 @@ deployment {
 			}
 
 			// NFS Storage
-			ProdNfsVm = Node_Vm "ProdNfsVm" {
+		ProdNfsVm = Node_Vm "prod-nfs-vm" {
 				#Deployment
 				technology "NFS / GlusterFS"
 				description """
@@ -230,6 +225,9 @@ deployment {
 		}
 		Prod.AppTier.ProdMonolithVm02.monolithApp -> Prod.DataTier.ProdNfsVm.nfsApp "Store files (standby)" {
 			description "any -> 2049"
+		}
+		Prod.AppTier.ProdMonolithVm01.monolithApp -> Internet.VirusTotalService.scannerInstance "Anti-virus check" {
+			description "any -> 443 (HTTPS)"
 		}
 	}
 }

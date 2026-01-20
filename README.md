@@ -256,116 +256,64 @@ Each project has specialized files following [LikeC4 DSL structure](https://like
 
 [LikeC4 relationships](https://likec4.dev/dsl/relationships)
 
+## 🤖 GitHub Copilot Skills
+
+This workspace includes **14 reusable skills** that teach GitHub Copilot how to help with LikeC4 architecture tasks. Skills are domain-specific guides that work alongside Copilot's general knowledge to provide detailed procedures, examples, and best practices.
+
+**Using Skills:** Ask Copilot to help with a task (e.g., "create a new element", "add a relationship", "design a C2 view") and Copilot will automatically apply the relevant skill with full context for your specific use case.
+
+**Browse all skills:** [`.github/skills/`](.github/skills/)
+
+| Skill | Purpose |
+|-------|---------|
+| [understand-project-structure](./.github/skills/understand-project-structure/SKILL.md) | Load project context before making changes |
+| [create-element](./.github/skills/create-element/SKILL.md) | Define elements with proper naming, hierarchy, and metadata |
+| [create-relationship](./.github/skills/create-relationship/SKILL.md) | Add typed relationships with FQN, kinds, and labels |
+| [design-view](./.github/skills/design-view/SKILL.md) | Create C1/C2/C3 views with filtering and layout |
+| [create-sequence-view](./.github/skills/create-sequence-view/SKILL.md) | Show temporal flows and use case interactions |
+| [model-deployment](./.github/skills/model-deployment/SKILL.md) | Define deployment infrastructure (zones, VMs, apps) |
+| [write-rich-descriptions](./.github/skills/write-rich-descriptions/SKILL.md) | Create self-documenting metadata with tables |
+| [customize-view](./.github/skills/customize-view/SKILL.md) | Advanced styling, colors, layout hints, navigation |
+| [c4-modeling-process](./.github/skills/c4-modeling-process/SKILL.md) | C4 methodology: design hierarchy top-to-bottom |
+| [test-model](./.github/skills/test-model/SKILL.md) | Validate model correctness with MCP tools |
+| [troubleshoot-errors](./.github/skills/troubleshoot-errors/SKILL.md) | Diagnose common LikeC4 errors and fix issues |
+| [lookup-element-kinds](./.github/skills/lookup-element-kinds/SKILL.md) | Quick reference for element kinds and relationship types |
+| [document-decision](./.github/skills/document-decision/SKILL.md) | Create Architecture Decision Records (ADRs) |
+| [implement-pattern](./.github/skills/implement-pattern/SKILL.md) | Apply tested architecture patterns |
+
+---
+
 ## 📐 Best Practices & Standards
 
-This repository demonstrates production-ready LikeC4 modeling patterns. All best practices are consistently applied across both legacy and refactored projects.
+This repository demonstrates production-ready LikeC4 modeling patterns. All best practices are consistently applied across both legacy and refactored projects. **For detailed examples and procedures, refer to the skills above.**
 
 ### 🎯 Relationship Typing Rules
 
 **RULE 1: All static relationships MUST have a typed kind**
 
-✅ **DO** - Always specify relationship kinds in model and deployment files:
-```likec4
-// Model files - business logic relationships
-customer -[calls]-> vault.api 'Access API'
-vault.worker -[async]-> vault.jobs 'Queue job'
-vault.service -[reads]-> vault.db 'Fetch metadata'
+Always specify relationship kinds (e.g., `calls`, `async`, `reads`, `writes`) in model files, and infrastructure protocols (e.g., `https`, `tcp`, `amqp`, `nfs`) in deployment files. Untyped arrows should only be used in dynamic views (use case flows) where temporal flow clarity is more important than protocol specificity.
 
-// Deployment files - infrastructure protocols
-AppTier -[https]-> DataTier 'API traffic'
-Worker -[tcp]-> Database 'Persist metadata'
-Upload -[amqp]-> Queue 'Publish jobs'
-```
+**Important:** Never model return/response relationships — they are implicit. A relationship from A to B implies a response from B to A.
 
-❌ **DON'T** - Use untyped arrows in model or deployment:
-```likec4
-// WRONG - Missing relationship kind
-customer -> vault.api 'Access API'
-AppTier -> DataTier 'API traffic'
-```
+**Why?** Typed relationships enable clear communication protocols, better diagram filtering, consistent styling, and self-documenting architecture.
 
-✅ **EXCEPTION** - Dynamic views (use case flows) may use untyped arrows for flow clarity:
-```likec4
-// Acceptable in dynamic views - focus is on temporal flow
-dynamic view usecases_upload {
-  customer -> vault.frontend 'Upload file'
-  vault.frontend -> vault.api 'POST /upload'
-}
-```
+📖 **See:** [create-relationship skill](./.github/skills/create-relationship/SKILL.md) for syntax and examples
 
-✅ **NO RETURN RELATIONSHIPS** - Return/response flows are implicit and should not be modeled:
-```likec4
-// ❌ BAD - Explicit return
-browser -[calls]-> webServer 'Load SPA'
-webServer -[calls]-> browser 'Returns HTML/JS'  // Don't add this
+### 📡 Deployment Relationships
 
-// ✅ GOOD - Return is implicit
-browser -[calls]-> webServer 'Load SPA (HTML/JS/CSS)'
-```
+Deployment models show physical infrastructure and actual network flows. Use VM-to-VM links for infrastructure-level flows, and App-to-App links when connecting deployed instances. Only reference Node_App instances that actually exist in the deployment hierarchy.
 
-**Why?** Typed relationships enable:
-- Clear communication protocols and patterns
-- Better diagram filtering and queries
-- Consistent styling and visual hierarchy
-- Self-documenting architecture
+**Port Semantics:** Use `any -> targetPort` for most connections (where source port is an implementation detail), and `sourcePort -> targetPort` only when the source port is architecturally significant (e.g., API Gateway listening on 443 routing to service on 3001).
 
-### 📡 Deployment Relationships Best Practice
-
-Deployment models show physical infrastructure and actual network flows. Follow these rules:
-
-#### **Linking Strategy**
-```likec4
-// ✅ VM-to-VM for infrastructure level flows
-UserBrowser -[https]-> Prod.Dmz.ProdApigwVm 'Load API'
-
-// ✅ App-to-App when linking deployed instances (Node_App)
-UserBrowser.browserApp -> Prod.Dmz.ProdApigwVm.apiApp 'API requests'
-
-// ❌ DON'T link to non-existent properties
-UserBrowser.browserApp.frontend -> VM.someProperty  // frontend doesn't exist!
-
-// ❌ DON'T use functional descriptions
-description "Web UI calls database"
-
-// ✅ USE network-only descriptions
-description "any -> 27017"  // protocol and port only
-```
-
-#### **Description Format: Port Semantics**
-
-Port descriptions show network flow direction. Use:
-
-- **`any -> targetPort`**: Connections from any source port to target
-  - Browser to server: `any -> 443`
-  - Monitoring scrapers: `any -> 8080`
-  - Service to database: `any -> 27017`
-  - Backup processes: `any -> 5432`
-
-- **`sourcePort -> targetPort`**: When source port is known and significant
-  - API Gateway to microservice: `443 -> 3001` (Kong listening on 443, calls service on 3001)
-  - Load balancer to app: `443 -> 8080`
-
-**Rule**: Use `any` for most connections (source port is implementation detail). Use actual source port only when it's architecturally significant.
-
-#### **Valid Node_App References**
-Only reference Node_App instances that actually exist in the deployment:
-```likec4
-// ✅ These exist and work
-ProdApigwVm.apiApp         // defined in VM
-ProdUploadVm.uploadApp     // defined in VM
-UserBrowser.browserApp     // defined in UserBrowser
-
-// ❌ These don't exist
-ProdApigwVm.api            // api doesn't exist, only apiApp
-UserBrowser.frontend       // frontend doesn't exist, only browserApp
-```
+📖 **See:** [model-deployment skill](./.github/skills/model-deployment/SKILL.md) for deployment structure and examples
 
 ### 🏗️ Architecture Organization
 
-✅ **Separation of concerns** - Logical and physical architectures separate  
-✅ **Proper hierarchies** - Systems → containers → components; VMs → apps  
-✅ **Shared specs** - Common definitions prevent duplication  
-✅ **File-per-purpose** - One concern per file (model, deployment, views, sequences)
+**Separation of concerns:**
+- **Model files** - Deployment-agnostic business logic (systems, containers, components)
+- **Deployment files** - Physical infrastructure (environments, zones, VMs, apps)
+- **View files** - C1/C2/C3 visualizations and deployment topology
+- **Sequence files** - Dynamic use case flows and interactions
 
 **File Structure Pattern:**
 ```
@@ -378,189 +326,69 @@ project/
 └── sequences.c4         # Dynamic use case flows
 ```
 
+**Key Principles:**
+- Systems → containers → components (logical hierarchy)
+- Environments → zones → VMs → apps (physical hierarchy)
+- Shared specs prevent duplication across projects
+- One concern per file for maintainability
+
+📖 **See:** [c4-modeling-process skill](./.github/skills/c4-modeling-process/SKILL.md) for modeling methodology
+
 ### 🎨 Naming & Documentation Standards
 
 **RULE 2: Use PascalCase for all element names**
 
-✅ **Consistent naming across all element types:**
-```likec4
-// Elements
-element ApiGateway
-element UploadService
-element ProdApigwVm
-
-// Tags
-#Production
-#Infrastructure
-#Deployment
-
-// Zones and environments
-Prod.AppTier.ProdFrontendVm
-Cicd.CicdZone.GitServerVm
-```
+Apply PascalCase consistently across elements (`ApiGateway`, `UploadService`, `ProdApigwVm`), tags (`#Production`, `#Infrastructure`), and hierarchies (`Prod.AppTier.ProdFrontendVm`). Use underscore `_` to separate category from subtype (e.g., `Actor_Person`, `System_Legacy`, `Container_Api`).
 
 **RULE 3: Always include descriptions and technologies**
 
-✅ **Rich metadata for every element:**
-```likec4
-container uploadService 'Upload Service' {
-  technology 'Node.js / Express'
-  description 'Handles file uploads and validation'
-  
-  uploadHandler = component 'Upload Handler' {
-    description 'Receives and validates files'
-    technology 'Multer / Express'
-  }
-}
-```
+Every element should have a technology stack and description. For deployment infrastructure, use markdown tables to document network specs (IPs, VLANs, CPU, RAM, ports). Rich metadata provides self-documenting diagrams, better stakeholder communication, and operational clarity.
 
-✅ **Detailed deployment infrastructure:**
-```likec4
-ProdDatabaseVm = vm 'ProdDatabaseVm' {
-  technology "MongoDB 6.0"
-  description """
-    Document metadata and encryption keys
-    
-    | Property | Value |
-    |:---------|:------|
-    | eth0 | 10.3.0.17/24 |
-    | CPU | 16 vCPU |
-    | RAM | 64 GB |
-    | Port | 27017 |
-  """
-}
-```
-
-**Why?** Rich metadata provides:
-- Self-documenting diagrams
-- Better stakeholder communication
-- Operational clarity (ports, IPs, specs)
-- Onboarding efficiency
+📖 **See:** [create-element skill](./.github/skills/create-element/SKILL.md) and [write-rich-descriptions skill](./.github/skills/write-rich-descriptions/SKILL.md)
 
 ### 🔗 Relationship Best Practices
 
 **RULE 4: All relationships must have descriptive labels**
 
-✅ **Clear, actionable labels:**
-```likec4
-vault.api -[calls]-> uploadService 'Route upload requests'
-monitoring -[tcp]-> database 'Scrape metrics'
-worker -[writes]-> storage 'Save encrypted file (primary)'
-```
+Labels should be clear and actionable, describing what flows through the relationship (e.g., 'Route upload requests', 'Scrape metrics', 'Save encrypted file').
 
 **RULE 5: Include technical details in deployment relationships**
 
-✅ **Document ports, protocols, and routing:**
-```likec4
-ProdApigwVm -[https]-> ProdUploadVm 'Route uploads' {
-  #Service #Routing
-  description "443 -> 3001"
-}
+Document ports, protocols, and routing information in deployment relationship descriptions. Use tags to categorize relationships (`#Service`, `#Routing`, `#Persistence`).
 
-AppTier -[tcp]-> DataTier 'Service reads/writes' {
-  description "any -> 27017 (MongoDB), 9000-9001 (MinIO)"
-}
-```
+📖 **See:** [create-relationship skill](./.github/skills/create-relationship/SKILL.md)
 
 ### 📊 View Design Patterns
 
 **RULE 6: Use scoped wildcards for focused views**
 
-✅ **Filter by context, not dump everything:**
-```likec4
-deployment view app_tier {
-  include Prod.AppTier.**
-  include -> Prod.AppTier.*    // Only incoming to this tier
-  include Prod.AppTier.* ->     // Only outgoing from this tier
-}
-```
-
-❌ **DON'T** - Include unfiltered wildcards:
-```likec4
-// WRONG - Shows too much
-include **
-include ** -> **
-```
+Filter by context using scoped includes (e.g., `include Prod.AppTier.**` for all descendants, `include -> Prod.AppTier.*` for incoming relationships). Avoid unfiltered wildcards (`include ** -> **`) that show too much.
 
 **RULE 7: Use rank to guide layout**
 
-✅ **Control diagram flow with rank:**
-```likec4
-view c2_container {
-  include customer, vault.*
-  
-  rank source {
-    customer
-  }
-  
-  rank sink {
-    minio,
-    scanner
-  }
-}
-```
+Control diagram flow by grouping elements into `rank source` (starting points like users), `rank same` (horizontal alignment), and `rank sink` (endpoints like databases).
+
+📖 **See:** [design-view skill](./.github/skills/design-view/SKILL.md) and [customize-view skill](./.github/skills/customize-view/SKILL.md)
 
 ### 🏷️ Tagging Strategy
 
 **RULE 8: Use semantic tags for filtering and styling**
 
-✅ **Consistent tag taxonomy:**
-```likec4
-// Purpose tags
-#External, #Internal, #Legacy, #Saas
-
-// Environment tags
-#Production, #Cicd, #Development
-
-// Infrastructure tags
-#Infrastructure, #Networking, #Security, #Monitoring
-
-// Service tags
-#Deployment, #Service, #Routing, #Persistence
-```
+Establish a consistent tag taxonomy:
+- **Purpose tags:** `#External`, `#Internal`, `#Legacy`, `#Saas`
+- **Environment tags:** `#Production`, `#Cicd`, `#Development`
+- **Infrastructure tags:** `#Infrastructure`, `#Networking`, `#Security`, `#Monitoring`
+- **Service tags:** `#Deployment`, `#Service`, `#Routing`, `#Persistence`
 
 ### 🔄 Model-Deployment Linking
 
 **RULE 9: Link logical to physical with instanceOf**
 
-✅ **Connect model containers to deployment apps:**
-```likec4
-// In model.c4
-container uploadService 'Upload Service' {
-  technology 'Node.js / Express'
-}
+Connect model containers to deployment apps using `instanceOf` to enable the same model deployed to multiple environments, clear traceability from business to infrastructure, and deployment-agnostic architecture design.
 
-// In deployment.c4
-ProdUploadVm = vm 'ProdUploadVm' {
-  uploadApp = app 'Upload Service App' {
-    instanceOf vault.uploadService  // Links to model
-  }
-}
-```
+📖 **See:** [model-deployment skill](./.github/skills/model-deployment/SKILL.md)
 
-**Why?** This enables:
-- Same model deployed to multiple environments
-- Clear traceability from business to infrastructure
-- Deployment-agnostic architecture design
-
-### 📝 Documentation Excellence
-
-**RULE 10: Use multi-line descriptions for complex elements**
-
-✅ **Structured tables in descriptions:**
-```likec4
-description """
-  Primary storage cluster with high availability
-  
-  | Property | Value |
-  |:---------|:------|
-  | Storage | 500 TB |
-  | Replication | 3-node cluster |
-  | Availability | 99.9% |
-"""
-```
-
-### Quick Tips
+### 📝 Quick Reference
 
 - **Models are deployment-agnostic** - Same app can run on different infrastructure
 - **Apps reference containers via `instanceOf`** - Links logical to physical
@@ -571,7 +399,7 @@ description """
 
 ### 📚 Learn More
 
-For detailed syntax and examples, visit [LikeC4 Documentation](https://likec4.dev/dsl)
+For detailed syntax and LikeC4 DSL reference, visit [LikeC4 Documentation](https://likec4.dev/dsl)
 
 ---
 
