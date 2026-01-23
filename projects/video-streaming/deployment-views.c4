@@ -1,135 +1,310 @@
 /**
  * Deployment Views - Video Streaming Platform
  * 
- * Visualizes the tiered datacenter deployment architecture.
+ * Visualizes the tiered datacenter deployment architecture with exhaustive includes.
+ * Each tier view shows the complete vertical slice:
+ * - Upstream zones/nodes (for context)
+ * - Focused tier with full VM details
+ * - Downstream zones/nodes (for context)
+ * 
  * See ADR 0006 for scaling-ready infrastructure decisions.
  */
 
 views 'Deployment' {
   
-  // Overview: Full infrastructure with all tiers
-  deployment view overview {
-    title 'Production Datacenter - Tiered Architecture'
+  /**
+   * prod_overview: Complete Infrastructure
+   * Full production datacenter with all tiers, zones, VMs, and persistent storage
+   */
+  deployment view prod_overview {
+    title 'Deployment / Production Overview'
     description '''
-      Complete production deployment with tiered network zones.
-      Internet → DMZ (edge) → App tier (UI/API) → Processing tier (transcoding/streaming) → Data tier (DB/cache/storage).
+      Complete production deployment with all tiered network zones and infrastructure.
+      Internet → DMZ (NGINX, VLAN 10) → App tier (WebUI/API, VLAN 20) → Processing tier (Transcoder/SRS, VLAN 30) → Data tier (DB/Cache/Storage, VLAN 40).
       Phase 1: Single-node with logical separation. Phase 2+: Multi-node with physical VLANs.
     '''
     
-    // Include all zones and their complete hierarchies
+    include externalServices
     include internet
-    include internet.*
     include Production
-    include Production.DmzZone
-    include Production.DmzZone.*
-    include Production.AppTierZone
-    include Production.AppTierZone.*
-    include Production.ProcTierZone
-    include Production.ProcTierZone.*
-    include Production.DataTierZone
-    include Production.DataTierZone.*
+    include Production.** where tag is #Vm
     
     autoLayout TopBottom
   }
   
-  // DMZ Zone: Public-facing edge services
-  deployment view dmz_zone {
-    title 'DMZ Zone - Edge Services'
+  /**
+   * dmz_tier: DMZ Zone - Edge Services (with downstream context)
+   * Exhaustive view: Internet → DMZ (focused) → Adjacent tiers (App, Processing, Data zones shown for context)
+   */
+  deployment view dmz_tier {
+    title 'Deployment / DMZ Tier'
     description '''
       Demilitarized zone for internet-facing services (VLAN 10, 10.0.10.0/24).
-      Internet → NGINX reverse proxy → Routes to internal tiers.
-      Security: SSL/TLS termination, DDoS protection, rate limiting.
+      Upstream: Internet clients and external services.
+      Focused: NGINX reverse proxy for SSL/TLS termination, DDoS protection, rate limiting, request routing.
+      Downstream: Routes to App tier (WebUI/API), Processing tier (Streaming), and Data tier (Redis session store).
     '''
     
+    include externalServices
     include internet
+    include internet.** where tag is #Vm
     include Production
-    include element.tag == #Dmz
+    include Production.DmzZone
+    include Production.DmzZone.** where tag is #Vm
     include Production.AppTierZone
     include Production.ProcTierZone
+    include Production.DataTierZone
     
     autoLayout TopBottom
   }
   
-  // Application Tier: Web UI and API services
+  /**
+   * app_tier: Application Tier - Web UI & API (with upstream and downstream context)
+   * Exhaustive view: DMZ → App tier (focused) → Data tier (complete vertical slice)
+   */
   deployment view app_tier {
-    title 'Application Tier - Web UI & API'
+    title 'Deployment / Application Tier'
     description '''
       Application services tier for user-facing business logic (VLAN 20, 10.0.20.0/24).
-      Web UI serves React SPA, API handles auth/metadata/transcoding orchestration.
-      Connections: DMZ → App tier, App tier → Data tier.
+      Upstream: DMZ reverse proxy (NGINX) routes requests.
+      Focused: Web UI serves React SPA, API handles authentication, metadata, transcoding orchestration.
+      Downstream: App tier connects to Data tier (PostgreSQL for metadata, Redis for session/cache).
     '''
     
     include Production
-    include Production.DmzZone
-    include Production.DmzZone.ProdNginxVm
-    include Production.DmzZone.ProdNginxVm.*
-    include element.tag == #AppTier
+    include Production.DmzZone.** where tag is #Vm
+    include Production.AppTierZone
+    include Production.AppTierZone.** where tag is #Vm
     include Production.DataTierZone
+    include Production.DataTierZone.** where tag is #Vm
+    include Production.DataTierZone.ProdDbVm.ProdPgVolume
+    include Production.DataTierZone.ProdCacheVm.ProdRedisVolume
+    include Production.DataTierZone.ProdStorageVm.ProdMinioVolume
     
     autoLayout TopBottom
   }
   
-  // Processing Tier: Compute-intensive workloads
-  deployment view processing_tier {
-    title 'Processing Tier - Transcoding & Streaming'
+  /**
+   * proc_tier: Processing Tier - Transcoding & Streaming (with upstream and downstream context)
+   * Exhaustive view: App tier → Processing tier (focused) → Data tier (complete vertical slice)
+   */
+  deployment view proc_tier {
+    title 'Deployment / Processing Tier'
     description '''
       Processing tier for CPU-intensive transcoding and streaming delivery (VLAN 30, 10.0.30.0/24).
-      Transcoder polls Redis job queue, encodes videos to 480p/720p/1080p HLS+DASH.
-      SRS streaming engine proxies manifests/segments from MinIO to viewers.
-      Scaling: Add transcoder workers horizontally as upload volume grows.
+      Upstream: App tier orchestrates transcoding jobs via Redis queue.
+      Focused: Transcoder encodes to 480p/720p/1080p HLS+DASH; SRS engine generates manifests and proxies segments.
+      Downstream: Both depend on Redis job queue and MinIO object storage in Data tier. Horizontal scaling: add transcoder workers.
     '''
     
     include Production
-    include Production.DmzZone
-    include Production.DmzZone.ProdNginxVm
-    include Production.DmzZone.ProdNginxVm.ProdNginxApp
-    include element.tag == #ProcTier
+    include Production.AppTierZone.** where tag is #Vm
+    include Production.ProcTierZone
+    include Production.ProcTierZone.** where tag is #Vm
     include Production.DataTierZone
+    include Production.DataTierZone.** where tag is #Vm
+    include Production.DataTierZone.ProdCacheVm.ProdRedisVolume
+    include Production.DataTierZone.ProdStorageVm.ProdMinioVolume
     
     autoLayout TopBottom
   }
   
-  // Data Tier: Databases, cache, object storage
+  /**
+   * data_tier: Data Tier - Persistence Layer (with upstream context)
+   * Exhaustive view: App tier + Processing tier → Data tier (focused) - complete upstream and focused
+   */
   deployment view data_tier {
-    title 'Data Tier - Persistence Layer'
+    title 'Deployment / Data Tier'
     description '''
       Data persistence tier for metadata, cache, and video object storage (VLAN 40, 10.0.40.0/24).
-      PostgreSQL: Video metadata, users, sessions, ACLs.
-      Redis: Session cache, manifest cache, JWT blacklist, Bull job queue.
-      MinIO: S3-compatible object storage for videos, segments, manifests.
-      Scaling: MinIO distributed mode (4-node cluster, Phase 2), PostgreSQL read replicas.
+      Upstream: App tier and Processing tier depend on all data services.
+      Focused: PostgreSQL stores metadata/users/sessions/ACLs, Redis caches sessions/manifests/job queue, MinIO stores video artifacts.
+      Persistent volumes back database and cache with redundancy. Phase 2: MinIO distributed mode (4-node), PostgreSQL read replicas.
     '''
     
     include Production
-    include Production.AppTierZone
-    include Production.AppTierZone.ProdAppVm
-    include Production.AppTierZone.ProdAppVm.*
-    include Production.ProcTierZone
-    include Production.ProcTierZone.ProdTranscoderVm
-    include Production.ProcTierZone.ProdTranscoderVm.ProdTranscoderApp
-    include Production.ProcTierZone.ProdStreamingVm
-    include Production.ProcTierZone.ProdStreamingVm.ProdSrsApp
-    include element.tag == #DataTier
+    include Production.AppTierZone.** where tag is #Vm
+    include Production.ProcTierZone.** where tag is #Vm
+    include Production.DataTierZone
+    include Production.DataTierZone.** where tag is #Vm
+    include Production.DataTierZone.ProdDbVm.ProdPgVolume
+    include Production.DataTierZone.ProdCacheVm.ProdRedisVolume
+    include Production.DataTierZone.ProdStorageVm.ProdMinioVolume
     
     autoLayout TopBottom
   }
   
-  // User Access Flow: Internet to application
+  /**
+   * user_access: User Access Flow - Client to Services (Internet through App tier)
+   * Shows end-to-end client access: Internet → DMZ (edge) → App tier (services)
+   */
   deployment view user_access {
-    title 'User Access Flow - Client to Services'
+    title 'Deployment / User Access Flow'
     description '''
-      End-to-end user access flow from client devices through edge to application services.
-      User device → Internet → DMZ NGINX (SSL termination) → App tier Web UI/API.
-      Client-side: Browser (React SPA) and mobile apps run on user devices.
+      End-to-end user access flow from client devices through edge infrastructure to application services.
+      Producers and viewers: App Stores → Mobile devices or Web browsers → Internet → DMZ NGINX (SSL termination) → App tier Web UI/API.
+      Web clients run React SPA in browser. Mobile clients run React Native app. All traffic encrypted via NGINX SSL/TLS.
     '''
     
+    include externalServices
+    include externalServices.** where tag is #Vm
     include internet
-    include internet.*
+    include internet.** where tag is #Vm
     include Production
-    include Production.DmzZone
-    include Production.DmzZone.*
-    include Production.AppTierZone
-    include Production.AppTierZone.*
+    include Production.DmzZone.** where tag is #Vm
+    include Production.AppTierZone.** where tag is #Vm
+    
+    autoLayout TopBottom
+  }
+}
+
+/**
+ * Operations Views - Deployment-Related Operational Flows
+ * Visualizes infrastructure scaling, backup/DR, monitoring, and CI/CD deployment scenarios
+ */
+views 'Operations' {
+  
+  /**
+   * ops_transcoder_scaling: Transcoder Horizontal Scaling
+   * Shows how to scale transcoder workers by adding new VMs to processing tier
+   */
+  deployment view ops_transcoder_scaling {
+    title 'Operations / Transcoder Scaling'
+    description '''
+      Horizontal scaling scenario: Adding transcoder worker VMs to Processing tier as upload volume grows.
+      Current state: 1x ProdTranscoderVm polling Redis job queue.
+      Scaling action: Add ProdTranscoder2Vm, ProdTranscoder3Vm to same VLAN 30.
+      Result: Multiple workers poll same Redis queue, reducing encoding latency and supporting more concurrent jobs.
+      Load balancing: Redis BullMQ automatically distributes jobs to available workers.
+    '''
+    
+    include Production
+    include Production.AppTierZone.** where tag is #Vm
+    include Production.ProcTierZone
+    include Production.ProcTierZone.** where tag is #Vm
+    include Production.DataTierZone.** where tag is #Vm
+    
+    autoLayout TopBottom
+  }
+  
+  /**
+   * ops_minio_scaling: MinIO Cluster Expansion
+   * Shows scaling MinIO from single-node to distributed cluster (Phase 2)
+   */
+  deployment view ops_minio_scaling {
+    title 'Operations / MinIO Storage Scaling'
+    description '''
+      Upgrade scenario: Expanding MinIO from single-node (Phase 1) to 4-node distributed cluster (Phase 2).
+      Current state: ProdStorageVm with ProdMinioApp and 10TB HDD volume.
+      Scaling action: Deploy 3 additional storage VMs (ProdStorage2Vm, ProdStorage3Vm, ProdStorage4Vm) on same VLAN 40.
+      Result: Distributed erasure-coded storage with 4x redundancy, supporting 40TB+ capacity.
+      Data migration: Seamless rebalancing using MinIO admin console (no downtime).
+    '''
+    
+    include Production
+    include Production.ProcTierZone.** where tag is #Vm
+    include Production.DataTierZone
+    include Production.DataTierZone.** where tag is #Vm
+    include Production.DataTierZone.ProdStorageVm.ProdMinioVolume
+    
+    autoLayout TopBottom
+  }
+  
+  /**
+   * ops_db_replication: PostgreSQL Read Replication
+   * Shows setting up PostgreSQL read replicas for scaling query load
+   */
+  deployment view ops_db_replication {
+    title 'Operations / Database Replication'
+    description '''
+      Replication scenario: Adding PostgreSQL read replicas to scale metadata query load (Phase 2).
+      Current state: ProdDbVm with single PostgreSQL 15 primary instance + persistent volume.
+      Replication setup: Deploy ProdDb2Vm and ProdDb3Vm with streaming replication from primary.
+      Result: Primary handles writes, replicas handle metadata queries (video list, playback history).
+      Failover: Promote replica to primary if primary fails (manual or automated via Patroni).
+    '''
+    
+    include Production
+    include Production.AppTierZone.** where tag is #Vm
+    include Production.ProcTierZone.** where tag is #Vm
+    include Production.DataTierZone
+    include Production.DataTierZone.** where tag is #Vm
+    include Production.DataTierZone.ProdDbVm.ProdPgVolume
+    include Production.DataTierZone.ProdCacheVm.ProdRedisVolume
+    include Production.DataTierZone.ProdStorageVm.ProdMinioVolume
+    
+    autoLayout TopBottom
+  }
+  
+  /**
+   * ops_monitoring_stack: Monitoring & Observability
+   * Shows monitoring collectors, log aggregation, and health checks across all tiers
+   */
+  deployment view ops_monitoring_stack {
+    title 'Operations / Monitoring & Observability'
+    description '''
+      Operational monitoring and observability infrastructure across all deployment tiers.
+      Monitoring collectors: Prometheus scrapes metrics from all VMs (CPU/memory/disk) + app containers.
+      Logging: ELK stack (Elasticsearch/Logstash/Kibana) or Loki aggregates logs from all services.
+      Health checks: Periodic probes from DMZ NGINX to API tier, periodic checks from App tier to Data tier.
+      Alerting: PagerDuty/Slack alerts on transcoding delays, storage capacity, database replication lag.
+    '''
+    
+    include Production
+    include Production.DmzZone.** where tag is #Vm
+    include Production.AppTierZone.** where tag is #Vm
+    include Production.ProcTierZone.** where tag is #Vm
+    include Production.DataTierZone.** where tag is #Vm
+    
+    autoLayout TopBottom
+  }
+  
+  /**
+   * ops_backup_strategy: Data Backup & Disaster Recovery
+   * Shows backup flows and recovery procedures
+   */
+  deployment view ops_backup_strategy {
+    title 'Operations / Backup & Disaster Recovery'
+    description '''
+      Data backup and disaster recovery strategy for all persistent data.
+      Database backups: pg_dump from ProdDbVm daily to external S3 bucket (AWS S3 or MinIO backup cluster).
+      Storage backups: MinIO bucket replication to external backup cluster or cloud storage.
+      Session cache (Redis): Non-persistent (sessions rebuilt on login), no backup needed.
+      Recovery: Restore PostgreSQL from latest backup, restore MinIO from replicated backup bucket.
+      RTO: ~2 hours for full infrastructure rebuild. RPO: Daily backups (24-hour data loss window).
+    '''
+    
+    include Production
+    include Production.AppTierZone.** where tag is #Vm
+    include Production.ProcTierZone.** where tag is #Vm
+    include Production.DataTierZone
+    include Production.DataTierZone.** where tag is #Vm
+    include Production.DataTierZone.ProdDbVm.ProdPgVolume
+    include Production.DataTierZone.ProdCacheVm.ProdRedisVolume
+    include Production.DataTierZone.ProdStorageVm.ProdMinioVolume
+    
+    autoLayout TopBottom
+  }
+  
+  /**
+   * ops_ci_cd_deployment: CI/CD Deployment Pipeline
+   * Shows artifact flow from repository through build, test, and deployment
+   */
+  deployment view ops_ci_cd_deployment {
+    title 'Operations / CI/CD Deployment Pipeline'
+    description '''
+      CI/CD deployment pipeline for automated application updates.
+      Source: GitHub repo with web-ui, api-server, transcoder services and Dockerfile definitions.
+      Build stage: GitHub Actions builds Docker images, pushes to registry (Docker Hub or internal registry).
+      Test stage: Integration tests run against staging environment (separate DMZ/App/Data tier stack).
+      Deploy stage: CD tool (ArgoCD or Helm) pulls images, updates manifests, rolls out to Production tiers.
+      Rollout strategy: Blue-green or canary deployments to minimize downtime.
+    '''
+    
+    include Production
+    include Production.DmzZone.** where tag is #Vm
+    include Production.AppTierZone.** where tag is #Vm
+    include Production.ProcTierZone.** where tag is #Vm
     
     autoLayout TopBottom
   }

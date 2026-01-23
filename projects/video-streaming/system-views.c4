@@ -1,13 +1,13 @@
 /**
  * System Views - Video Streaming Platform
  * 
- * Defines visualizations of the video streaming architecture:
+ * Defines visualizations of the video streaming architecture following C4 model best practices:
  * - C1: System Context - High-level view showing system in its environment
- * - C2: Container View (Full) - All containers and internal architecture
- * - C2: Container View (Content Upload) - Upload and transcoding workflow
- * - C2: Container View (Content Delivery) - Streaming and playback workflow
- * - C2: Data Infrastructure - Storage, database, and caching layer
+ * - C2: System Internals - All containers and internal architecture
+ * - C3: Component deep-dives for API Server, Transcoder, and Streaming Engine
  * - Index: Architecture overview entry point
+ * 
+ * Use Cases (workflows, sequences) are in `views 'Use Cases'` subfolder.
  */
 
 views {
@@ -26,32 +26,102 @@ views {
     include videoStreaming
     include webBrowser
     include mobileDevice
+    include appStores
   }
   
   /**
-   * C2: Containers - Full System Architecture
+   * C2: System Internals - Complete Architecture
    * Detailed internal view showing all containers, databases, and integrations
-   * Shows complete flow from upload through playback
+   * Shows complete system architecture and relationships
    */
-  view c2_containers_full {
-    title 'C2 / System Architecture - Full'
-    description 'Complete system showing all containers: UI, API, transcoding, streaming, storage, and databases'
+  view c2_internals {
+    title 'C2 / System Internals'
+    description 'Complete system architecture with all containers: UI, API, transcoding, streaming, storage, and databases'
     
     include producer
     include viewer
     include videoStreaming.*
     include webBrowser
     include mobileDevice
+    include appStores
   }
   
   /**
-   * C2: Containers - Content Upload & Transcoding Flow
-   * Focused view on the video upload and encoding workflow
-   * Highlights the fixed 3-tier bitrate transcoding strategy (480p/720p/1080p)
+   * C3: API Server Components
+   * Internal business logic components within the API server
+   * Shows API server with supporting infrastructure containers
    */
-  view c2_upload_transcoding {
-    title 'C2 / Upload & Transcoding Workflow'
-    description 'Video upload flow: Producer → Browser → Reverse Proxy → Web UI → API enqueues job to Redis → Transcoder polls queue → Encodes to 480p/720p/1080p → Stored in MinIO'
+  view c3_apiserver {
+    title 'C3 / API Server'
+    description 'API server business logic components: authentication, metadata management, transcoding orchestration. Depends on Metadata Database, Redis Cache, and coordinates with Transcoder.'
+    
+    include producer
+    include viewer
+    include videoStreaming.apiServer
+    include videoStreaming.reverseProxy
+    include videoStreaming.webUI
+    include videoStreaming.mobileApp
+    include videoStreaming.db
+    include videoStreaming.redisCache
+    include videoStreaming.transcoder
+  }
+  
+  /**
+   * C3: Transcoder Components
+   * Internal processing logic for encoding and bitrate scaling
+   * Shows transcoder with queue and storage dependencies
+   */
+  view c3_transcoder {
+    title 'C3 / Transcoder'
+    description 'Background transcoder worker components: job polling, encoding pipeline, bitrate scaling (480p/720p/1080p). Depends on Redis job queue and MinIO storage.'
+    
+    include videoStreaming.transcoder
+    include videoStreaming.redisCache
+    include videoStreaming.storage
+    include videoStreaming.apiServer
+  }
+  
+  /**
+   * C3: Streaming Engine Components
+   * Internal manifest generation and segment delivery logic
+   * Shows streaming engine with cache and storage dependencies
+   */
+  view c3_streamingengine {
+    title 'C3 / Streaming Engine'
+    description 'SRS streaming engine components: HLS/DASH manifest generation, segment serving, playlist caching. Depends on MinIO storage and Redis cache.'
+    
+    include viewer
+    include videoStreaming.streamingEngine
+    include videoStreaming.storage
+    include videoStreaming.redisCache
+    include webBrowser
+    include mobileDevice
+  }
+  
+  /**
+   * Index View
+   * Entry point for exploring the architecture
+   * Extends C1 context to provide high-level system overview with navigation
+   */
+  view index extends c1_context {
+    title 'Video Streaming Platform - Architecture Overview'
+    description 'Self-hosted VOD platform with HLS/DASH streaming. Navigate to C2 System Internals for architecture details or C3 component views for deep dives into major services.'
+  }
+}
+
+/**
+ * Use Cases / Workflows
+ * Sequence and dynamic views showing temporal interactions and user workflows
+ */
+views 'Use Cases' {
+  
+  /**
+   * UC1: Video Upload & Transcoding Workflow
+   * Shows the complete flow from producer uploading a video through encoding
+   */
+  view uc_upload_workflow {
+    title 'UC / Video Upload & Transcoding'
+    description 'Workflow: Producer uploads video through browser → API stores metadata → Enqueues transcoding job → Transcoder picks up job → Encodes to 3-tier bitrates → Stores segments in MinIO'
     
     include producer
     include webBrowser
@@ -65,50 +135,42 @@ views {
   }
   
   /**
-   * C2: Containers - Content Delivery & Playback Flow
-   * Focused view on the streaming and playback workflow
-   * Highlights HLS/DASH dual protocol delivery via SRS streaming engine
+   * UC2: Video Playback & Streaming Workflow
+   * Shows the complete flow from viewer opening a video through playback
    */
-  view c2_playback_delivery {
-    title 'C2 / Streaming & Playback Workflow'
-    description 'Video playback flow: Viewer → Browser/Mobile → Reverse Proxy → API (metadata) + SRS (HLS/DASH streams) → Segments from MinIO'
+  view uc_playback_workflow {
+    title 'UC / Video Playback & Streaming'
+    description 'Workflow: Viewer requests video → API provides metadata and auth → SRS generates HLS/DASH manifests → Viewer streams segments from MinIO via SRS proxy'
     
     include viewer
+    include webBrowser
+    include mobileDevice
     include videoStreaming.reverseProxy
     include videoStreaming.webUI
     include videoStreaming.mobileApp
     include videoStreaming.apiServer
     include videoStreaming.streamingEngine
     include videoStreaming.storage
-    include webBrowser
-    include mobileDevice
+    include videoStreaming.db
+    include videoStreaming.redisCache
   }
   
   /**
-   * C2: Containers - Data & Infrastructure Layer
-   * Focused view on storage, databases, and caching infrastructure
-   * Shows how data is persisted and cached across the platform
+   * UC3: Data Flow & Persistence
+   * Shows how data flows through the platform and is persisted
    */
-  view c2_data_infrastructure {
-    title 'C2 / Data & Infrastructure Layer'
-    description 'Database (PostgreSQL), cache (Redis), and object storage (MinIO) supporting the entire platform'
+  view uc_data_flow {
+    title 'UC / Data Flow & Persistence'
+    description 'Data persistence: Video originals in MinIO → Metadata in PostgreSQL → Cache in Redis → Encoded segments in MinIO. All containers write to appropriate storage.'
     
-    include videoStreaming
+    include videoStreaming.reverseProxy
+    include videoStreaming.webUI
+    include videoStreaming.mobileApp
     include videoStreaming.apiServer
     include videoStreaming.transcoder
     include videoStreaming.streamingEngine
     include videoStreaming.db
     include videoStreaming.redisCache
     include videoStreaming.storage
-  }
-  
-  /**
-   * Index View
-   * Entry point for exploring the architecture
-   * Extends C1 context to provide high-level system overview
-   */
-  view index extends c1_context {
-    title 'Video Streaming Platform - Architecture Overview'
-    description 'Self-hosted VOD platform with HLS/DASH streaming. Navigate to detailed views for deeper exploration.'
   }
 }

@@ -90,6 +90,13 @@ model {
     }
   }
   
+  // C1: External Systems - Mobile App Distribution
+  appStores = System_External 'App Stores' {
+    #Saas
+    description 'Mobile app distribution platforms (Apple App Store, Google Play Store)'
+    technology 'iOS App Store / Google Play'
+  }
+  
   // C1: External Terminals to Edge Gateway
   webBrowser -[calls]-> videoStreaming.reverseProxy 'HTTPS requests to platform (port 443)'
   mobileDevice -[calls]-> videoStreaming.reverseProxy 'HTTPS requests to platform (port 443)'
@@ -126,6 +133,11 @@ model {
   videoStreaming.streamingEngine -[reads]-> videoStreaming.storage 'Fetch HLS/DASH manifests and segments'
   videoStreaming.streamingEngine -[reads]-> videoStreaming.db 'Query access control for content delivery'
   videoStreaming.webUI -[calls]-> videoStreaming.streamingEngine 'Request HLS/DASH streams (.m3u8, .mpd)'
+  
+  // C1: Mobile App Distribution
+  videoStreaming.mobileApp -[calls]-> appStores 'Submit app builds for review and distribution'
+  viewer -[calls]-> appStores 'Download and install mobile app'
+  appStores -[calls]-> mobileDevice 'Distribute mobile app to device'
   
   // C1: Viewer - Content Delivery
   viewer -[calls]-> webBrowser 'Watch videos via web browser'

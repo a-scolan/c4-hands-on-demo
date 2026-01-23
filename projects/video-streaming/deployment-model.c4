@@ -19,6 +19,27 @@
 
 deployment {
 
+  // External SaaS zone: Third-party cloud services
+  externalServices = Zone_Internet 'External Services' {
+    description 'Third-party SaaS platforms and cloud services outside our infrastructure'
+    
+    AppStores = Node_SaaS 'app-stores' {
+      technology 'Apple App Store, Google Play Store'
+      description '''
+        Mobile app distribution platforms.
+        
+        | Platform | Purpose |
+        |:---------|:--------|
+        | Apple App Store | iOS app distribution (iPhone, iPad) |
+        | Google Play Store | Android app distribution |
+        | Deployment | React Native builds uploaded via CI/CD |
+        | Review Process | Automated + manual review (1-3 days) |
+        | Updates | Over-the-air updates via app store |
+      '''
+      instanceOf appStores
+    }
+  }
+
   // Internet zone: External connections
   internet = Zone_Internet 'Internet' {
     description 'Public internet where users access the platform'
@@ -421,6 +442,11 @@ deployment {
 
   // Client-side → DMZ: User devices to edge gateway
   internet.UserBrowserInstance -[https]-> Production.DmzZone.ProdNginxVm.ProdNginxApp 'HTTPS requests (port 443)'
+  // Mobile app distribution flow: Build → App stores → User devices
+  externalServices.AppStores -[https]-> internet.UserMobileInstance 'App download and installation' {
+    description "User initiates download from app store, app installed on device"
+  }
+  
   internet.UserMobileInstance -[https]-> Production.DmzZone.ProdNginxVm.ProdNginxApp 'HTTPS requests (port 443)'
 
   // DMZ → Application Tier: Reverse proxy routing
