@@ -22,10 +22,9 @@ model {
 		}
 	
 		// Load balancer for distribution
-		loadBalancer = Container_WebServer 'Load Balancer' {
+		loadBalancer = Container_Loadbalancer 'Load Balancer' {
 			description 'Distributes traffic across monolith instances'
 			technology 'HAProxy'
-			icon @/reversProxy.svg
 		}
 
 		// Monolith deployed together

@@ -22,7 +22,7 @@ deployment {
   // External SaaS zone: Third-party cloud services
   externalServices = Zone_Internet 'External Services' {
     description 'Third-party SaaS platforms and cloud services outside our infrastructure'
-    
+     
     AppStores = Node_SaaS 'app-stores' {
       technology 'Apple App Store, Google Play Store'
       description '''
